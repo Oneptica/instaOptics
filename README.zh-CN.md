@@ -4,6 +4,8 @@
 
 桌面端光学仿真软件，支持 Windows、macOS、Linux。
 
+在线体验网页版：**[instaoptics.oneptica.com](https://instaoptics.oneptica.com)**
+
 [![CI](https://img.shields.io/github/actions/workflow/status/Oneptica/instaOptics/ci.yml?branch=main&style=flat-square&logo=githubactions&logoColor=white&label=CI)](https://github.com/Oneptica/instaOptics/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/Oneptica/instaOptics?style=flat-square&logo=github&label=release)](https://github.com/Oneptica/instaOptics/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
