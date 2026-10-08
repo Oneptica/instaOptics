@@ -2,7 +2,12 @@
 
 # instaOptics
 
-Desktop optical simulation software. Windows, macOS, Linux.
+Free and open-source optical simulation software.
+
+[![CI](https://github.com/Oneptica/instaOptics/actions/workflows/ci.yml/badge.svg)](https://github.com/Oneptica/instaOptics/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Oneptica/instaOptics)](https://github.com/Oneptica/instaOptics/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/Oneptica/instaOptics/total)](https://github.com/Oneptica/instaOptics/releases)
+![Platforms](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue)
 
 [中文](README.zh-CN.md)
 
