@@ -4,12 +4,13 @@ import { basename, join } from 'node:path'
 import { BrowserWindow, Menu, MessageChannelMain, app, dialog, ipcMain, nativeTheme, shell, utilityProcess, type MenuItem, type UtilityProcess } from 'electron'
 import type { MenuCommand } from '../shared/protocol'
 import { buildMenu } from './menu'
+import { checkForUpdates, setupUpdater } from './updater'
 
 // AppImages cannot ship the setuid sandbox helper, and Ubuntu 24.04+ blocks the namespace sandbox for them.
 if (process.env.APPIMAGE) app.commandLine.appendSwitch('no-sandbox')
 
 // Settings that must be known before the app is ready (they change Chromium switches).
-interface StartupSettings { softwareRendering?: boolean }
+interface StartupSettings { softwareRendering?: boolean; scale?: number }
 const settingsPath = () => join(app.getPath('userData'), 'startup.json')
 function readStartupSettings(): StartupSettings {
   try { return JSON.parse(readFileSync(settingsPath(), 'utf8')) as StartupSettings } catch { return {} }
@@ -21,10 +22,17 @@ if (startup.softwareRendering) {
   app.commandLine.appendSwitch('enable-unsafe-swiftshader')
 }
 
-function setSoftwareRendering(enabled: boolean) {
-  writeFileSync(settingsPath(), JSON.stringify({ ...readStartupSettings(), softwareRendering: enabled }))
+// Interface scale for displays that report the wrong DPI (remote desktops, some Linux fractional scaling).
+if (startup.scale && startup.scale > 0) app.commandLine.appendSwitch('force-device-scale-factor', String(startup.scale))
+
+function saveStartupAndRestart(patch: StartupSettings) {
+  writeFileSync(settingsPath(), JSON.stringify({ ...readStartupSettings(), ...patch }))
   app.relaunch()
   app.exit(0)
+}
+
+function setSoftwareRendering(enabled: boolean) {
+  saveStartupAndRestart({ softwareRendering: enabled })
 }
 
 const FILE_FILTERS = [{ name: 'instaOptics lens', extensions: ['iol'] }, { name: 'JSON', extensions: ['json'] }]
@@ -172,14 +180,23 @@ ipcMain.on('window:close', event => {
 interface MenuEntry { label: string; accelerator?: string; type: string; checked: boolean; enabled: boolean; path: number[] }
 function serializeMenu() {
   const items = Menu.getApplicationMenu()?.items ?? []
-  const entry = (item: MenuItem, path: number[]): MenuEntry => ({
-    label: item.label, accelerator: item.accelerator ?? undefined, type: item.type, checked: item.checked, enabled: item.enabled, path,
+  const entry = (item: MenuItem, path: number[], prefix = ''): MenuEntry => ({
+    label: prefix + item.label, accelerator: item.accelerator ?? undefined, type: item.type, checked: item.checked, enabled: item.enabled, path,
   })
-  return items.map((top, i) => ({ label: top.label, items: (top.submenu?.items ?? []).filter(item => item.visible).map(item => entry(item, [i, top.submenu!.items.indexOf(item)])) }))
+  // Nested submenus are listed inline under a header ("Interface Scale: 150%"), since the title bar shows one level.
+  return items.map((top, i) => ({
+    label: top.label,
+    items: (top.submenu?.items ?? []).flatMap((item, j): MenuEntry[] => {
+      if (!item.visible) return []
+      if (item.submenu) return item.submenu.items.map((child, k) => entry(child, [i, j, k], `${item.label.replace(' (restarts)', '')}: `))
+      return [entry(item, [i, j])]
+    }),
+  }))
 }
 ipcMain.handle('menu:get', () => serializeMenu())
 ipcMain.on('menu:invoke', (event, path: number[]) => {
-  const item = Menu.getApplicationMenu()?.items[path[0]]?.submenu?.items[path[1]]
+  let item = Menu.getApplicationMenu()?.items[path[0]]?.submenu?.items[path[1]]
+  if (path.length > 2) item = item?.submenu?.items[path[2]]
   const window = BrowserWindow.fromWebContents(event.sender) ?? undefined
   if (item?.enabled) item.click(undefined, window, event.sender)
 })
@@ -195,7 +212,8 @@ ipcMain.handle('file:basename', (_event, path: string) => basename(path))
 app.whenReady().then(() => {
   app.setName('instaOptics')
   startCompute()
-  buildMenu(sendMenu, () => createWindow(), { softwareRendering: !!startup.softwareRendering, setSoftwareRendering })
+  buildMenu(sendMenu, () => createWindow(), { softwareRendering: !!startup.softwareRendering, setSoftwareRendering, scale: startup.scale ?? 0, setScale: scale => saveStartupAndRestart({ scale }) }, () => checkForUpdates(true))
+  setupUpdater()
   createWindow()
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow() })
 })

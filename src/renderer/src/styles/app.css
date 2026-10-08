@@ -450,3 +450,6 @@ button, input, select { font: inherit; color: inherit; }
 .footprint .frame { fill: none; stroke: var(--plot-axis); }
 .footprint .cross { stroke: var(--plot-grid); }
 .footprint .aperture { fill: none; stroke: var(--text-strong); stroke-width: 1.2; stroke-dasharray: 4 3; }
+.status-button { border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+.status-button.highlight { background: var(--accent); color: var(--accent-text); }
+.status-button:hover { filter: brightness(1.1); }

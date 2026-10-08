@@ -74,6 +74,17 @@ const api: InstaOpticsApi = {
     invoke: path => ipcRenderer.send('menu:invoke', path),
   },
   setTitleBarColors: colors => ipcRenderer.send('window:titleBar', colors),
+  update: {
+    get: () => ipcRenderer.invoke('update:get'),
+    onState(callback) {
+      const listener = (_event: IpcRendererEvent, state: Parameters<typeof callback>[0]) => callback(state)
+      ipcRenderer.on('update:state', listener)
+      return () => { ipcRenderer.off('update:state', listener) }
+    },
+    check: () => ipcRenderer.send('update:check'),
+    download: () => ipcRenderer.send('update:download'),
+    install: () => ipcRenderer.send('update:install'),
+  },
   setSoftwareRendering: enabled => ipcRenderer.send('app:softwareRendering', enabled),
 }
 

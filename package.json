@@ -39,5 +39,8 @@
     "electron-winstaller@5.4.0": true
   },
   "author": "Oneptica",
-  "homepage": "https://github.com/Oneptica/instaOptics"
+  "homepage": "https://github.com/Oneptica/instaOptics",
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  }
 }

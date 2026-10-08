@@ -50,7 +50,7 @@ export function TitleBar({ title }: { title: string }) {
                         disabled={!item.enabled}
                         onClick={() => { setOpen(null); api.menu.invoke(item.path) }}
                       >
-                        <span className="menu-check">{item.type === 'checkbox' && item.checked ? '✓' : ''}</span>
+                        <span className="menu-check">{(item.type === 'checkbox' || item.type === 'radio') && item.checked ? '✓' : ''}</span>
                         <span className="menu-label">{item.label}</span>
                         <span className="menu-shortcut">{shortcut(item.accelerator)}</span>
                       </button>

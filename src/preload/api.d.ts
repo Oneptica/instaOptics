@@ -1,6 +1,13 @@
 // The API the preload script exposes to the renderer as window.instaOptics.
 import type { EngineMethod, MenuCommand } from '../shared/protocol'
 
+export type UpdateState =
+  | { status: 'idle' | 'checking' | 'none' }
+  | { status: 'available'; version: string; canInstall: boolean }
+  | { status: 'downloading'; version: string; percent: number }
+  | { status: 'ready'; version: string }
+  | { status: 'error'; message: string }
+
 export interface EngineResult { json: string; ms: number; buffer?: ArrayBuffer }
 
 export interface EngineParams { system?: string; raysPerField?: number; analysis?: string; iterations?: number; target?: number; settings?: string; buffer?: ArrayBuffer; width?: number; height?: number }
@@ -31,6 +38,14 @@ export interface InstaOpticsApi {
   menu: {
     get(): Promise<Array<{ label: string; items: Array<{ label: string; accelerator?: string; type: string; checked: boolean; enabled: boolean; path: number[] }> }>>
     invoke(path: number[]): void
+  }
+  update: {
+    get(): Promise<UpdateState>
+    onState(callback: (state: UpdateState) => void): () => void
+    check(): void
+    /** Downloads the update, or opens the download page where in-place updates are not possible. */
+    download(): void
+    install(): void
   }
   /** Colours of the OS window buttons drawn over the title bar (Windows and Linux). */
   setTitleBarColors(colors: { color: string; symbolColor: string }): void

@@ -9,6 +9,7 @@ import { formatFixed } from './format'
 import { PANELS, panelTitle } from './panels/registry'
 import { showWelcomeOnStartup } from './panels/Welcome'
 import { TitleBar } from './TitleBar'
+import { UpdateStatus } from './UpdateStatus'
 import { decodeZmx, exportZmx, importZmx } from './zemax'
 import { SIDEBAR_VIEWS, Sidebar, type SidebarView } from './sidebar/Sidebar'
 
@@ -272,6 +273,7 @@ export function App() {
             ? <span className="status-item"><i className="codicon codicon-error" /> {engine.error}</span>
             : engine.ms !== null && <span className="status-item" title="Time for paraxial data, apertures and layout">{engine.ms.toFixed(2)} ms</span>}
           <span className="status-fill" />
+          <UpdateStatus />
           {paraxial && <>
             <span className="status-item mono">EFL {formatFixed(paraxial.efl)}</span>
             <span className="status-item mono">F/# {formatFixed(paraxial.fNumber, 3)}</span>
