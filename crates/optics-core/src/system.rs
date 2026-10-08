@@ -36,6 +36,17 @@ pub struct Surface {
     /// Glass perturbation of the medium after this surface (tolerancing).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub glass_offset: Option<GlassOffset>,
+    /// Makes this a coordinate break: it does not interact with rays but moves and rotates the coordinate system of
+    /// every following surface.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub coordinate_break: Option<CoordinateBreak>,
+}
+
+/// Decenter, then tilt about x, y and z (degrees), as in OpticStudio's coordinate break with order 0.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct CoordinateBreak {
+    pub decenter: [f64; 2],
+    pub tilt: [f64; 3],
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -112,12 +123,48 @@ impl Surface {
     }
 
     pub fn curvature(&self) -> f64 {
-        if self.radius == 0.0 { 0.0 } else { 1.0 / self.radius }
+        if self.radius == 0.0 || self.coordinate_break.is_some() { 0.0 } else { 1.0 / self.radius }
+    }
+
+    pub fn is_mirror(&self) -> bool {
+        glass::is_mirror(&self.material) && self.coordinate_break.is_none()
+    }
+
+    /// Whether the medium after this surface is a glass (not air, a mirror or a coordinate break).
+    pub fn is_glass(&self) -> bool {
+        self.coordinate_break.is_none() && !glass::is_air(&self.material) && !glass::is_mirror(&self.material)
     }
 
     pub fn is_plain_sphere(&self) -> bool {
         self.conic == 0.0 && self.aspheric.iter().all(|&a| a == 0.0)
     }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ApertureType {
+    #[default]
+    EntrancePupilDiameter,
+    /// Image space F/# = EFL / EPD.
+    ImageFNumber,
+    /// Paraxial working F/# = 1 / (2 n' |u'|) for the actual object.
+    WorkingFNumber,
+    /// Object space numerical aperture (finite object).
+    ObjectNa,
+    /// The stop semi-diameter, in mm.
+    FloatByStop,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum FieldType {
+    /// Half-field angle in degrees.
+    #[default]
+    Angle,
+    /// Object height in mm (finite object).
+    ObjectHeight,
+    /// Paraxial image height in mm.
+    ImageHeight,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -128,9 +175,18 @@ pub struct LensSystem {
     pub object_distance: Option<f64>,
     pub surfaces: Vec<Surface>,
     pub stop_index: usize,
+    /// The working entrance pupil diameter. With another aperture type it is a starting value that
+    /// `resolved()` replaces.
     pub entrance_pupil_diameter: f64,
-    /// Half-field angles in degrees.
+    #[serde(default)]
+    pub aperture_type: ApertureType,
+    /// F/#, NA or stop semi-diameter for the other aperture types.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub aperture_value: Option<f64>,
+    /// Field values in units of `field_type`.
     pub fields: Vec<f64>,
+    #[serde(default)]
+    pub field_type: FieldType,
     pub wavelengths: Vec<f64>,
     /// Index into `wavelengths`.
     pub primary_wavelength: usize,
@@ -182,18 +238,30 @@ impl LensSystem {
         self.fields.iter().fold(0.0_f64, |max, field| max.max(field.abs()))
     }
 
-    /// Indices of the media: [object space, after surface 1, …, after surface k].
+    /// Indices of the media: [object space, after surface 1, …, after surface k]. After an odd number of mirrors the
+    /// indices are negative (light travels towards −z), which keeps the paraxial equations unchanged.
     pub fn medium_indices(&self, wavelength: f64) -> Result<Vec<f64>, LensError> {
         let mut n = Vec::with_capacity(self.surfaces.len() + 1);
         n.push(1.0);
+        let mut sign = 1.0;
         for (i, surface) in self.surfaces.iter().enumerate() {
-            let index = glass::refractive_index(&surface.material, wavelength)
+            let previous = *n.last().unwrap();
+            if surface.coordinate_break.is_some() {
+                n.push(previous);
+                continue;
+            }
+            if surface.is_mirror() {
+                sign = -sign;
+                n.push(-previous);
+                continue;
+            }
+            let index = sign * glass::refractive_index(&surface.material, wavelength)
                 .ok_or_else(|| LensError(format!("Unknown material \"{}\" on surface {}", surface.material, i + 1)))?;
             n.push(match surface.glass_offset {
                 // Shift nd and scale the dispersion so vd changes by the requested fraction.
                 Some(offset) => {
                     let nd = glass::refractive_index(&surface.material, glass::LINE_D).unwrap_or(index);
-                    nd + offset.index + (index - nd) / (1.0 + offset.abbe)
+                    sign * (nd + offset.index + (index.abs() - nd) / (1.0 + offset.abbe))
                 }
                 None => index,
             });
@@ -246,6 +314,9 @@ fn visible(name: &str, stop_index: usize, entrance_pupil_diameter: f64, fields: 
         wavelengths: VISIBLE.to_vec(),
         primary_wavelength: 1,
         ray_aiming: true,
+        aperture_type: ApertureType::EntrancePupilDiameter,
+        aperture_value: None,
+        field_type: FieldType::Angle,
         target_efl: None,
         optimization: OptimizationSettings::default(),
     }
@@ -291,6 +362,9 @@ pub fn aspheric_singlet() -> LensSystem {
         wavelengths: vec![glass::LINE_D],
         primary_wavelength: 0,
         ray_aiming: true,
+        aperture_type: ApertureType::EntrancePupilDiameter,
+        aperture_value: None,
+        field_type: FieldType::Angle,
         target_efl: None,
         optimization: OptimizationSettings::default(),
     }

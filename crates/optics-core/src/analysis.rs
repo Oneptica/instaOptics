@@ -554,6 +554,128 @@ pub fn mtf(context: &TraceContext, paraxial: &ParaxialData, size: usize, points:
     Ok(MtfResult { frequencies, cutoff, fields, diffraction })
 }
 
+/// Polychromatic tangential and sagittal MTF of one field at the given frequencies (cycles/mm).
+pub fn mtf_at(context: &TraceContext, paraxial: &ParaxialData, field: f64, frequencies: &[f64], size: usize) -> Result<(Vec<f64>, Vec<f64>), LensError> {
+    let system = context.system;
+    let cutoff_for = |wavelength: f64| 1.0 / (wavelength * 1e-3 * paraxial.working_f_number);
+    let slices = system.wavelengths.par_iter()
+        .map(|&w| wavefront(context, paraxial, field, w, size).map(|map| (w, otf_slices(&map))))
+        .collect::<Result<Vec<_>, _>>()?;
+    let count = system.wavelengths.len() as f64;
+    let sample = |tangential: bool| -> Vec<f64> {
+        frequencies.iter().map(|&f| {
+            slices.iter().map(|(w, (t, s))| interpolate(if tangential { t } else { s }, f / cutoff_for(*w) * size as f64)).sum::<f64>() / count
+        }).collect()
+    };
+    Ok((sample(true), sample(false)))
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct ThroughFocus {
+    pub frequency: f64,
+    /// Image plane shifts, mm.
+    pub shifts: Vec<f64>,
+    /// Per field: tangential and sagittal MTF at each shift.
+    pub fields: Vec<MtfField>,
+}
+
+/// MTF at one frequency as the image plane moves through focus.
+pub fn through_focus_mtf(system: &LensSystem, frequency: f64, range: f64, steps: usize, size: usize) -> Result<ThroughFocus, LensError> {
+    let shifts: Vec<f64> = (0..steps).map(|i| -range + 2.0 * range * i as f64 / (steps - 1) as f64).collect();
+    let last = system.last();
+    let per_shift = shifts.par_iter().map(|&dz| {
+        let mut shifted = system.clone();
+        // Thickness after an odd number of mirrors is negative; move the image along the light.
+        let sign = if shifted.surfaces[last].thickness < 0.0 { -1.0 } else { 1.0 };
+        shifted.surfaces[last].thickness += sign * dz;
+        let paraxial = crate::paraxial::paraxial_data(&shifted)?;
+        let context = TraceContext::new(&shifted, &paraxial);
+        shifted.fields.iter().map(|&f| mtf_at(&context, &paraxial, f, &[frequency], size).map(|(t, s)| (t[0], s[0]))).collect::<Result<Vec<_>, _>>()
+    }).collect::<Result<Vec<_>, LensError>>()?;
+    let fields = system.fields.iter().enumerate().map(|(k, &field)| MtfField {
+        field,
+        tangential: per_shift.iter().map(|v| v[k].0).collect(),
+        sagittal: per_shift.iter().map(|v| v[k].1).collect(),
+    }).collect();
+    Ok(ThroughFocus { frequency, shifts, fields })
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct MtfVsField {
+    /// Field angles, degrees.
+    pub angles: Vec<f64>,
+    pub frequencies: Vec<f64>,
+    /// Per frequency: tangential and sagittal MTF at each angle.
+    pub curves: Vec<MtfField>,
+}
+
+pub fn mtf_vs_field(context: &TraceContext, paraxial: &ParaxialData, frequencies: &[f64], samples: usize, size: usize) -> Result<MtfVsField, LensError> {
+    let angles = field_angles(context.system, samples);
+    let values = angles.par_iter().map(|&a| mtf_at(context, paraxial, a, frequencies, size)).collect::<Result<Vec<_>, _>>()?;
+    let curves = frequencies.iter().enumerate().map(|(k, &f)| MtfField {
+        field: f,
+        tangential: values.iter().map(|v| v.0[k]).collect(),
+        sagittal: values.iter().map(|v| v.1[k]).collect(),
+    }).collect();
+    Ok(MtfVsField { angles, frequencies: frequencies.to_vec(), curves })
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChromaticFocalShift {
+    /// µm.
+    pub wavelengths: Vec<f64>,
+    /// Paraxial focus position relative to the primary wavelength's, µm.
+    pub shift: Vec<f64>,
+    /// Largest minus smallest shift, µm.
+    pub range: f64,
+}
+
+/// Paraxial marginal-ray focus versus wavelength over the system's band.
+pub fn chromatic_focal_shift(system: &LensSystem, samples: usize) -> Result<ChromaticFocalShift, LensError> {
+    let lo = system.wavelengths.iter().cloned().fold(f64::INFINITY, f64::min);
+    let hi = system.wavelengths.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+    let (lo, hi) = if hi - lo < 1e-6 { (lo * 0.85, hi * 1.15) } else { (lo, hi) };
+    let focus = |w: f64| -> Result<f64, LensError> {
+        let n = system.medium_indices(w)?;
+        let last = system.last();
+        let ray = match system.object_distance {
+            None => paraxial_trace(system, &n, 1.0, 0.0),
+            Some(d) => paraxial_trace(system, &n, 0.0, 1.0 / d),
+        };
+        Ok(-ray.heights[last] / ray.angles[last])
+    };
+    let reference = focus(system.primary_wavelength())?;
+    let wavelengths: Vec<f64> = (0..samples).map(|i| lo + (hi - lo) * i as f64 / (samples - 1) as f64).collect();
+    let shift = wavelengths.iter().map(|&w| focus(w).map(|f| (f - reference) * 1000.0)).collect::<Result<Vec<_>, _>>()?;
+    let range = shift.iter().cloned().fold(f64::NEG_INFINITY, f64::max) - shift.iter().cloned().fold(f64::INFINITY, f64::min);
+    Ok(ChromaticFocalShift { wavelengths, shift, range })
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Footprint {
+    pub surface: usize,
+    /// Per field: (x, y) of each ray on the surface, in its own coordinates (mm).
+    pub fields: Vec<Vec<[f64; 2]>>,
+    pub semi_diameter: f64,
+}
+
+/// Where the beam of each field lands on a surface, at the primary wavelength.
+pub fn footprint(context: &TraceContext, surface: usize, rings: usize, semi_diameter: f64) -> Result<Footprint, LensError> {
+    let system = context.system;
+    let wavelength = system.primary_wavelength();
+    let n = system.medium_indices(wavelength)?;
+    let pupil = hexapolar(rings);
+    let fields = system.fields.iter().map(|&field| {
+        pupil.iter().filter_map(|&[px, py]| {
+            let ray = context.trace_ray(field, px, py, wavelength, &n);
+            ray.local.get(surface).copied().filter(|_| ray.failure.is_none_or(|f| f.surface > surface))
+        }).collect()
+    }).collect();
+    Ok(Footprint { surface, fields, semi_diameter })
+}
+
 // ---------- relative illumination ----------
 
 #[derive(Clone, Debug, Serialize)]

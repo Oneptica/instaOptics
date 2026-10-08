@@ -27,8 +27,14 @@ pub struct Failure {
 
 #[derive(Clone, Debug)]
 pub struct RealRay {
-    /// Start point, one point per surface reached, then the image plane point when the ray survives.
+    /// Start point, one point per surface reached, then the image plane point when the ray survives, in image
+    /// coordinates: the image plane is z = image_z with its axes, so analyses work unchanged after folds. Without
+    /// coordinate breaks these are global coordinates.
     pub points: Vec<Vec3>,
+    /// The same points in global coordinates, for drawing.
+    pub world: Vec<Vec3>,
+    /// (x, y) of each surface hit in that surface's own coordinates.
+    pub local: Vec<[f64; 2]>,
     pub failure: Option<Failure>,
     /// Final direction after the last surface reached.
     pub direction: Vec3,
@@ -52,10 +58,72 @@ struct AimModel {
     inverse: [f64; 4],
 }
 
+/// A surface's coordinate system: global = origin + rotation · local (rotation columns are the local axes).
+#[derive(Clone, Copy, Debug)]
+pub struct Frame {
+    pub origin: Vec3,
+    pub rotation: Matrix3,
+}
+
+impl Frame {
+    pub const IDENTITY: Frame = Frame { origin: [0.0, 0.0, 0.0], rotation: IDENTITY };
+
+    pub fn to_global(&self, p: Vec3) -> Vec3 {
+        add(rotate(&self.rotation, p), self.origin)
+    }
+
+    pub fn to_local(&self, p: Vec3) -> Vec3 {
+        rotate_back(&self.rotation, [p[0] - self.origin[0], p[1] - self.origin[1], p[2] - self.origin[2]])
+    }
+
+    pub fn dir_to_global(&self, d: Vec3) -> Vec3 {
+        rotate(&self.rotation, d)
+    }
+
+    pub fn dir_to_local(&self, d: Vec3) -> Vec3 {
+        rotate_back(&self.rotation, d)
+    }
+}
+
+fn multiply(a: &Matrix3, b: &Matrix3) -> Matrix3 {
+    let mut m = [0.0; 9];
+    for r in 0..3 {
+        for c in 0..3 {
+            m[r * 3 + c] = (0..3).map(|k| a[r * 3 + k] * b[k * 3 + c]).sum();
+        }
+    }
+    m
+}
+
+/// Vertex frame of every surface and the image plane frame. Coordinate breaks decenter, then rotate about x, y and z.
+pub fn surface_frames(system: &LensSystem) -> (Vec<Frame>, Frame) {
+    let mut frame = Frame::IDENTITY;
+    let mut frames = Vec::with_capacity(system.surfaces.len());
+    for surface in &system.surfaces {
+        frames.push(frame);
+        if let Some(cb) = surface.coordinate_break {
+            frame.origin = frame.to_global([cb.decenter[0], cb.decenter[1], 0.0]);
+            let [ax, ay, az] = cb.tilt.map(f64::to_radians);
+            let (sx, cx) = ax.sin_cos();
+            let (sy, cy) = ay.sin_cos();
+            let (sz, cz) = az.sin_cos();
+            let rx = [1.0, 0.0, 0.0, 0.0, cx, -sx, 0.0, sx, cx];
+            let ry = [cy, 0.0, sy, 0.0, 1.0, 0.0, -sy, 0.0, cy];
+            let rz = [cz, -sz, 0.0, sz, cz, 0.0, 0.0, 0.0, 1.0];
+            frame.rotation = multiply(&multiply(&multiply(&frame.rotation, &rx), &ry), &rz);
+        }
+        frame.origin = frame.to_global([0.0, 0.0, surface.thickness]);
+    }
+    (frames, frame)
+}
+
 /// Per-system data shared by every ray: vertex positions, pupil, clipping and the ray-aiming cache.
 pub struct TraceContext<'a> {
     pub system: &'a LensSystem,
+    /// Unfolded vertex positions (cumulative thickness), as used by paraxial optics.
     pub z: Vec<f64>,
+    pub frames: Vec<Frame>,
+    pub image_frame: Frame,
     pub image_z: f64,
     pub entrance_pupil_z: f64,
     pub stop_semi_diameter: f64,
@@ -68,11 +136,15 @@ pub struct TraceContext<'a> {
 impl<'a> TraceContext<'a> {
     pub fn new(system: &'a LensSystem, paraxial: &ParaxialData) -> Self {
         let image_z = system.image_z();
-        let span = image_z.max(10.0);
+        let z = system.surface_z();
+        let span = z.iter().fold(image_z.abs(), |m, v| m.max(v.abs())).max(10.0);
         let ParaxialData { entrance_pupil_z, stop_semi_diameter, .. } = *paraxial;
+        let (frames, image_frame) = surface_frames(system);
         TraceContext {
             system,
-            z: system.surface_z(),
+            z,
+            frames,
+            image_frame,
             image_z,
             entrance_pupil_z,
             stop_semi_diameter,
@@ -91,6 +163,8 @@ impl<'a> TraceContext<'a> {
         TraceContext {
             system: self.system,
             z: self.z.clone(),
+            frames: self.frames.clone(),
+            image_frame: self.image_frame,
             image_z: self.image_z,
             entrance_pupil_z: self.entrance_pupil_z,
             stop_semi_diameter: self.stop_semi_diameter,
@@ -118,53 +192,77 @@ impl<'a> TraceContext<'a> {
         }
     }
 
+    /// Global → image coordinates: the image plane becomes z = image_z (identity without coordinate breaks).
+    fn to_image(&self, p: Vec3) -> Vec3 {
+        let q = self.image_frame.to_local(p);
+        [q[0], q[1], q[2] + self.image_z]
+    }
+
     /// Propagates through surfaces 0..=last; when `last` is before the final surface the ray stops there unrefracted.
     fn propagate(&self, start: Vec3, start_direction: Vec3, n: &[f64], last: usize, clip: bool) -> RealRay {
         let surfaces = &self.system.surfaces;
         let mut position = start;
         let mut direction = start_direction;
-        let mut points = vec![position];
+        let mut world = vec![position];
+        let mut local_hits = Vec::new();
         // For a collimated beam the optical path is measured from the plane wavefront through the origin.
         let mut opl = if self.system.object_distance.is_none() { dot(direction, position) } else { 0.0 };
-        let fail = |points: Vec<Vec3>, surface: usize, reason: FailureReason, direction: Vec3, opl: f64| RealRay {
-            points,
-            failure: Some(Failure { surface, reason }),
-            direction,
+        let finish = |world: Vec<Vec3>, local: Vec<[f64; 2]>, failure: Option<Failure>, direction: Vec3, opl: f64| RealRay {
+            points: world.iter().map(|&p| self.to_image(p)).collect(),
+            world,
+            local,
+            failure,
+            direction: self.image_frame.dir_to_local(direction),
             opl,
         };
+        let fail = |surface: usize, reason: FailureReason| Some(Failure { surface, reason });
         for i in 0..=last {
             let surface = &surfaces[i];
+            let vertex = &self.frames[i];
+            let mut local = vertex.to_local(position);
+            let mut local_direction = vertex.dir_to_local(direction);
+            if surface.coordinate_break.is_some() {
+                // No interaction. Record where the ray line crosses the break's vertex plane (for drawing and
+                // apertures) but keep the ray where it is: the next surface may lie before that plane, e.g. a
+                // 45° fold mirror at the same vertex.
+                if local_direction[2].abs() < 1e-15 {
+                    return finish(world, local_hits, fail(i, FailureReason::Miss), direction, opl);
+                }
+                let t = -local[2] / local_direction[2];
+                world.push(add(position, [t * direction[0], t * direction[1], t * direction[2]]));
+                local_hits.push([local[0] + t * local_direction[0], local[1] + t * local_direction[1]]);
+                if i == last && last < surfaces.len() - 1 {
+                    return finish(world, local_hits, None, direction, opl);
+                }
+                continue;
+            }
             let frame = surface_frame(surface);
             let (offset, rotation) = frame.unwrap_or(([0.0, 0.0], IDENTITY));
-            let mut local = [position[0] - offset[0], position[1] - offset[1], position[2] - self.z[i]];
-            let mut local_direction = direction;
             if frame.is_some() {
-                local = rotate(&rotation, local);
-                local_direction = rotate(&rotation, direction);
+                local = rotate(&rotation, [local[0] - offset[0], local[1] - offset[1], local[2]]);
+                local_direction = rotate(&rotation, local_direction);
             }
             let Some(hit) = intersect(surface, local, local_direction) else {
-                return fail(points, i, FailureReason::Miss, direction, opl);
+                return finish(world, local_hits, fail(i, FailureReason::Miss), direction, opl);
             };
             if hit.t < -1e-9 && i > 0 {
-                return fail(points, i, FailureReason::Backward, direction, opl);
+                return finish(world, local_hits, fail(i, FailureReason::Backward), direction, opl);
             }
             let local_hit = [local[0] + hit.t * local_direction[0], local[1] + hit.t * local_direction[1], local[2] + hit.t * local_direction[2]];
-            position = if frame.is_some() {
-                add(rotate_back(&rotation, local_hit), [offset[0], offset[1], self.z[i]])
-            } else {
-                [local_hit[0], local_hit[1], local_hit[2] + self.z[i]]
-            };
-            opl += n[i] * hit.t;
-            points.push(position);
+            let vertex_hit = if frame.is_some() { add(rotate_back(&rotation, local_hit), [offset[0], offset[1], 0.0]) } else { local_hit };
+            position = vertex.to_global(vertex_hit);
+            opl += n[i].abs() * hit.t;
+            world.push(position);
+            local_hits.push([local_hit[0], local_hit[1]]);
             if clip {
                 if let Some(limit) = self.clip[i] {
                     if local_hit[0].hypot(local_hit[1]) > limit + 1e-9 {
-                        return fail(points, i, FailureReason::Clip, direction, opl);
+                        return finish(world, local_hits, fail(i, FailureReason::Clip), direction, opl);
                     }
                 }
             }
             if i == last && last < surfaces.len() - 1 {
-                return RealRay { points, failure: None, direction, opl };
+                return finish(world, local_hits, None, direction, opl);
             }
 
             let mut normal = hit.normal;
@@ -173,32 +271,44 @@ impl<'a> TraceContext<'a> {
                 normal = [-normal[0], -normal[1], -normal[2]];
                 cos_i = -cos_i;
             }
-            let mu = n[i] / n[i + 1];
-            let k = 1.0 - mu * mu * (1.0 - cos_i * cos_i);
-            if k < 0.0 {
-                return fail(points, i, FailureReason::Tir, direction, opl);
-            }
-            let g = k.sqrt() - mu * cos_i;
-            let refracted = normalize([
-                mu * local_direction[0] + g * normal[0],
-                mu * local_direction[1] + g * normal[1],
-                mu * local_direction[2] + g * normal[2],
-            ]);
-            direction = if frame.is_some() { rotate_back(&rotation, refracted) } else { refracted };
+            let new_direction = if surface.is_mirror() {
+                normalize([
+                    local_direction[0] - 2.0 * cos_i * normal[0],
+                    local_direction[1] - 2.0 * cos_i * normal[1],
+                    local_direction[2] - 2.0 * cos_i * normal[2],
+                ])
+            } else {
+                let mu = n[i].abs() / n[i + 1].abs();
+                let k = 1.0 - mu * mu * (1.0 - cos_i * cos_i);
+                if k < 0.0 {
+                    return finish(world, local_hits, fail(i, FailureReason::Tir), direction, opl);
+                }
+                let g = k.sqrt() - mu * cos_i;
+                normalize([
+                    mu * local_direction[0] + g * normal[0],
+                    mu * local_direction[1] + g * normal[1],
+                    mu * local_direction[2] + g * normal[2],
+                ])
+            };
+            let in_vertex = if frame.is_some() { rotate_back(&rotation, new_direction) } else { new_direction };
+            direction = vertex.dir_to_global(in_vertex);
         }
-        if direction[2] <= 0.0 {
-            return fail(points, surfaces.len(), FailureReason::Backward, direction, opl);
+        // Image plane: z = 0 in the image frame.
+        let local = self.image_frame.to_local(position);
+        let local_direction = self.image_frame.dir_to_local(direction);
+        let t = if local_direction[2].abs() < 1e-15 { -1.0 } else { -local[2] / local_direction[2] };
+        if t < -1e-9 {
+            return finish(world, local_hits, fail(surfaces.len(), FailureReason::Backward), direction, opl);
         }
-        let t = (self.image_z - position[2]) / direction[2];
-        points.push([position[0] + t * direction[0], position[1] + t * direction[1], self.image_z]);
-        RealRay { points, failure: None, direction, opl }
+        world.push(add(position, [t * direction[0], t * direction[1], t * direction[2]]));
+        finish(world, local_hits, None, direction, opl)
     }
 
     fn stop_hit(&self, field_angle: f64, ax: f64, ay: f64, n: &[f64]) -> Option<[f64; 2]> {
         let (position, direction) = self.launch(field_angle, ax, ay);
         let ray = self.propagate(position, direction, n, self.system.stop(), false);
-        let hit = ray.end();
-        ray.ok().then_some([hit[0], hit[1]])
+        // Stop coordinates are measured in the stop surface's own frame.
+        if ray.ok() { ray.local.last().copied() } else { None }
     }
 
     /// Linearizes stop coordinates around the real chief ray with finite-difference Newton steps.
@@ -292,8 +402,8 @@ pub fn automatic_semi_diameters(context: &TraceContext) -> Result<Vec<f64>, Lens
     for &field in &system.fields {
         for (px, py) in [(0.0, 1.0), (0.0, -1.0), (1.0, 0.0)] {
             let ray = open.trace_ray(field, px, py, wavelength, &n);
-            for (i, point) in ray.points.iter().skip(1).take(system.surfaces.len()).enumerate() {
-                heights[i] = heights[i].max(point[0].hypot(point[1]));
+            for (i, hit) in ray.local.iter().take(system.surfaces.len()).enumerate() {
+                heights[i] = heights[i].max(hit[0].hypot(hit[1]));
             }
         }
     }

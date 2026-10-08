@@ -5,7 +5,6 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::analysis::{OpdEvaluator, hexapolar};
-use crate::glass::is_air;
 use crate::paraxial::paraxial_data;
 use crate::surface::sag;
 use crate::system::{LensSystem, Objective};
@@ -101,6 +100,7 @@ pub fn residuals(system: &LensSystem) -> Vec<f64> {
     if system.validate().is_err() {
         return failed;
     }
+    let Ok(system) = &crate::paraxial::resolved(system) else { return failed };
     let Ok(paraxial) = paraxial_data(system) else { return failed };
     if !paraxial.efl.is_finite() || !paraxial.entrance_pupil_z.is_finite() {
         return failed;
@@ -171,11 +171,18 @@ pub fn residuals(system: &LensSystem) -> Vec<f64> {
             out.push(if surface.thickness < 0.0 { PENALTY * -surface.thickness } else { 0.0 });
             continue;
         };
-        let glass = !is_air(&surface.material);
+        if surface.coordinate_break.is_some() || next.coordinate_break.is_some() {
+            out.extend([0.0, 0.0]);
+            continue;
+        }
+        let glass = surface.is_glass();
+        // Thicknesses after an odd number of mirrors are negative; measure them along the light.
+        let sign = indices[0][i + 1].signum();
+        let thickness = sign * surface.thickness;
         let centre_min = if glass { min_glass } else { min_air };
-        out.push(if surface.thickness < centre_min { PENALTY * (centre_min - surface.thickness) } else { 0.0 });
+        out.push(if thickness < centre_min { PENALTY * (centre_min - thickness) } else { 0.0 });
         let h = semi[i].max(semi[i + 1]);
-        let edge = surface.thickness + sag(next, h.min(semi[i + 1])) - sag(surface, h.min(semi[i]));
+        let edge = thickness + sign * (sag(next, h.min(semi[i + 1])) - sag(surface, h.min(semi[i])));
         let edge_min = if glass { min_edge } else { min_air };
         out.push(if edge.is_finite() && edge < edge_min { PENALTY * (edge_min - edge) } else { 0.0 });
     }

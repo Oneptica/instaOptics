@@ -52,6 +52,7 @@ fn height_per_tan(system: &LensSystem, entrance_pupil_z: f64) -> Result<f64, Len
 /// Sensor pitch (µm) that puts the largest field at the image half-diagonal.
 pub fn fitting_pitch(system: &LensSystem, width: usize, height: usize) -> Result<f64, LensError> {
     system.validate()?;
+    let system = &crate::paraxial::resolved(system)?;
     let paraxial = paraxial_data(system)?;
     let half_diagonal = (width as f64).hypot(height as f64) / 2.0;
     Ok((height_per_tan(system, paraxial.entrance_pupil_z)? * system.max_field().to_radians().tan()).abs() / half_diagonal * 1000.0)
@@ -210,6 +211,7 @@ pub struct Simulated {
 /// Renders an 8-bit RGBA scene through the lens.
 pub fn simulate(system: &LensSystem, settings: &SimulationSettings, rgba: &[u8], width: usize, height: usize) -> Result<Simulated, LensError> {
     system.validate()?;
+    let system = &crate::paraxial::resolved(system)?;
     if width < 2 || height < 2 || rgba.len() < width * height * 4 {
         return Err(LensError("The image is empty".into()));
     }

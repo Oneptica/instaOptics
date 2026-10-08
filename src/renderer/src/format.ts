@@ -12,3 +12,8 @@ export function formatShort(value: number): string {
 }
 
 export const fieldColor = (index: number) => `var(--field-${(index % 6) + 1})`
+
+/** A field value with its unit: degrees for angle fields, mm for object or image heights. */
+export function fieldLabel(value: number, fieldType: string | undefined): string {
+  return fieldType && fieldType !== 'angle' ? `${formatShort(value)} mm` : `${formatShort(value)}°`
+}

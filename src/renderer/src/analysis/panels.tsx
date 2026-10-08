@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
 import { useWorkbench } from '../document'
-import { fieldColor, formatShort } from '../format'
+import { fieldColor, fieldLabel, formatShort } from '../format'
 import { Heatmap } from '../plots/Heatmap'
 import { Legend, LinePlot, type Series, niceTicks, useSize } from '../plots/LinePlot'
-import { AnalysisFrame, Select, wavelengthColor } from './AnalysisFrame'
+import { AnalysisFrame, Select, toCsv, wavelengthColor } from './AnalysisFrame'
 import {
   type FieldCurves, type Illumination, type MtfResult, type PsfResult, type RayFanField, type SeidelResult, type SpotField,
   type WavefrontMap, useAnalysis,
@@ -13,7 +13,7 @@ const um = (mm: number | null | undefined) => mm === null || mm === undefined ||
 
 function useFieldOptions() {
   const { doc } = useWorkbench()
-  return doc.system.fields.map((field, i) => ({ value: i, label: `${i + 1}: ${formatShort(field)}°` }))
+  return doc.system.fields.map((field, i) => ({ value: i, label: `${i + 1}: ${fieldLabel(field, doc.system.fieldType)}` }))
 }
 
 function useWavelengthOptions() {
@@ -63,6 +63,8 @@ export function SpotPanel() {
   return (
     <AnalysisFrame
       state={state}
+      name="spot-diagram"
+      csv={spots => toCsv(['field', 'wavelength_um', 'x_um', 'y_um'], spots.flatMap(f => f.points.map(([x, y, w]) => [f.field, doc.system.wavelengths[w], x * 1000, y * 1000])))}
       controls={<Select label="Rings" value={rings} options={[3, 4, 6, 8, 10, 12, 16].map(v => ({ value: v, label: String(v) }))} onChange={setRings} />}
       legend={<WavelengthLegend />}
     >
@@ -86,7 +88,12 @@ export function RayFanPanel() {
   const { doc } = useWorkbench()
   const state = useAnalysis<RayFanField[]>({ kind: 'rayFan', samples: 61 })
   return (
-    <AnalysisFrame state={state} legend={<WavelengthLegend />}>
+    <AnalysisFrame
+      state={state}
+      name="ray-fan"
+      csv={fans => toCsv(['field', 'fan', 'wavelength_um', 'pupil', 'error_um'], fans.flatMap(f => (['tangential', 'sagittal'] as const).flatMap(k => f[k].flatMap(c => c.pupil.map((p, i) => [f.field, k, c.wavelength, p, c.error[i] * 1000])))))}
+      legend={<WavelengthLegend />}
+    >
       {fans => {
         const all = fans.flatMap(f => [...f.tangential, ...f.sagittal].flatMap(c => c.error)).map(Math.abs)
         const limit = Math.max(...all, 1e-6) * 1000 * 1.05
@@ -98,7 +105,7 @@ export function RayFanPanel() {
           <div className="fan-grid">
             {fans.map((fan, i) => (
               <div className="fan-row" key={i}>
-                <div className="fan-label mono">{formatShort(doc.system.fields[i] ?? fan.field)}°</div>
+                <div className="fan-label mono">{fieldLabel(doc.system.fields[i] ?? fan.field, doc.system.fieldType)}</div>
                 <LinePlot title="Tangential" series={series(fan.tangential)} xLabel="Py" yLabel="ey (µm)" xDomain={[-1, 1]} yDomain={[-limit, limit]} />
                 <LinePlot title="Sagittal" series={series(fan.sagittal)} xLabel="Px" yLabel="ex (µm)" xDomain={[-1, 1]} yDomain={[-limit, limit]} />
               </div>
@@ -120,9 +127,11 @@ export function MtfPanel() {
   return (
     <AnalysisFrame
       state={state}
+      name="fft-mtf"
+      csv={r => toCsv(['frequency_per_mm', 'diffraction', ...r.fields.flatMap(f => [`T_${f.field}`, `S_${f.field}`])], r.frequencies.map((fq, i) => [fq, r.diffraction[i], ...r.fields.flatMap(f => [f.tangential[i], f.sagittal[i]])]))}
       controls={<Select label="Max freq." value={maxFrequency} options={[0, 10, 20, 50, 100, 200, 500].map(v => ({ value: v, label: v ? `${v} lp/mm` : 'Cutoff' }))} onChange={setMaxFrequency} />}
       legend={<Legend items={[
-        ...fields.map((f, i) => ({ label: `${formatShort(f)}°`, color: fieldColor(i) })),
+        ...fields.map((f, i) => ({ label: fieldLabel(f, doc.system.fieldType), color: fieldColor(i) })),
         { label: 'T', color: 'var(--text-muted)' }, { label: 'S', color: 'var(--text-muted)', dash: '4 3' },
         { label: 'Diffraction', color: 'var(--text-strong)', dash: '1 3' },
       ]} />}
@@ -161,6 +170,8 @@ export function PsfPanel() {
   return (
     <AnalysisFrame
       state={state}
+      name="fft-psf"
+      csv={psf => toCsv(['radius_um', 'encircled', 'diffraction'], psf.radius.map((r, i) => [r * 1000, psf.energy[i], psf.diffraction[i]]))}
       controls={<>
         <Select label="Field" value={Math.min(field, fieldOptions.length - 1)} options={fieldOptions} onChange={setField} />
         <Select label="Scale" value={scale} options={[{ value: 'linear', label: 'Linear' }, { value: 'log', label: 'Log' }]} onChange={setScale} />
@@ -212,6 +223,8 @@ export function WavefrontPanel() {
   return (
     <AnalysisFrame
       state={state}
+      name="wavefront"
+      csv={map => toCsv(['row', ...Array.from({ length: map.size }, (_, c) => `x${c}`)], Array.from({ length: map.size }, (_, r) => [r, ...map.values.slice(r * map.size, (r + 1) * map.size)]))}
       controls={<>
         <Select label="Field" value={f} options={fieldOptions} onChange={setField} />
         <Select label="Wavelength" value={w} options={wavelengthOptions} onChange={setWavelength} />
@@ -236,7 +249,11 @@ export function WavefrontPanel() {
 export function FieldCurvesPanel() {
   const state = useAnalysis<FieldCurves>({ kind: 'fieldCurves', samples: 41 })
   return (
-    <AnalysisFrame state={state} legend={<><WavelengthLegend /><Legend items={[{ label: 'T', color: 'var(--text-muted)' }, { label: 'S', color: 'var(--text-muted)', dash: '5 3' }]} /></>}>
+    <AnalysisFrame
+      state={state}
+      name="field-curvature-distortion"
+      csv={r => toCsv(['field_deg', 'distortion_pct', ...r.curves.flatMap(c => [`T_${c.wavelength}`, `S_${c.wavelength}`])], r.angles.map((a, i) => [a, r.distortion[i], ...r.curves.flatMap(c => [c.tangential[i], c.sagittal[i]])]))}
+      legend={<><WavelengthLegend /><Legend items={[{ label: 'T', color: 'var(--text-muted)' }, { label: 'S', color: 'var(--text-muted)', dash: '5 3' }]} /></>}>
       {result => {
         const top = result.angles[result.angles.length - 1] || 1
         return (
@@ -317,7 +334,11 @@ function SeidelBars({ result }: { result: SeidelResult }) {
 export function SeidelPanel() {
   const state = useAnalysis<SeidelResult>({ kind: 'seidel' })
   return (
-    <AnalysisFrame state={state} legend={<Legend items={SEIDEL_KEYS.map((k, i) => ({ label: k, color: SEIDEL_COLORS[i] }))} />}>
+    <AnalysisFrame
+      state={state}
+      name="seidel"
+      csv={r => toCsv(['surface', ...SEIDEL_KEYS], [...r.surfaces.map((t, i) => [i + 1, ...SEIDEL_KEYS.map(k => t[k])]), ['SUM', ...SEIDEL_KEYS.map(k => r.total[k])]])}
+      legend={<Legend items={SEIDEL_KEYS.map((k, i) => ({ label: k, color: SEIDEL_COLORS[i] }))} />}>
       {result => (
         <div className="seidel">
           <div className="seidel-chart"><SeidelBars result={result} /></div>
@@ -347,6 +368,8 @@ export function IlluminationPanel() {
   return (
     <AnalysisFrame
       state={state}
+      name="relative-illumination"
+      csv={r => toCsv(['field_deg', 'relative', 'unvignetted', 'cos4'], r.angles.map((a, i) => [a, r.relative[i], r.unvignetted[i], r.cos4[i]]))}
       legend={<Legend items={[
         { label: 'Relative illumination', color: 'var(--field-1)' },
         { label: 'cos⁴', color: 'var(--text-muted)', dash: '5 3' },

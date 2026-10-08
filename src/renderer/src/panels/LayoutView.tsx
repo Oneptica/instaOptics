@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent, type WheelEvent } from 'react'
 import type { Layout, Point } from '../../../shared/lens'
 import { useWorkbench } from '../document'
-import { fieldColor, formatShort } from '../format'
+import { fieldColor, fieldLabel, formatShort } from '../format'
 
 interface View { scale: number; x: number; y: number } // screen = (z·scale + x, −y·scale + y)
 
@@ -88,7 +88,7 @@ export function LayoutView() {
         <span className="toolbar-fill" />
         <span className="legend">
           {system.fields.map((field, i) => (
-            <span key={i} className="legend-item"><span className="swatch" style={{ background: fieldColor(i) }} />{formatShort(field)}°</span>
+            <span key={i} className="legend-item"><span className="swatch" style={{ background: fieldColor(i) }} />{fieldLabel(field, system.fieldType)}</span>
           ))}
         </span>
       </div>
@@ -106,7 +106,7 @@ export function LayoutView() {
           >
             <line className="axis" x1={0} x2={size.width} y1={view.y} y2={view.y} />
             {layout.elements.map((outline, i) => <path key={`e${i}`} className="element" d={path(outline, view, true)} />)}
-            {layout.surfaces.map((profile, i) => <path key={`s${i}`} className="surface" d={path(profile, view)} />)}
+            {layout.surfaces.map((profile, i) => profile.length > 0 && <path key={`s${i}`} className={layout.mirrors.includes(i) ? 'mirror' : 'surface'} d={path(profile, view)} />)}
             {layout.rays.map((ray, i) => (
               <path key={`r${i}`} className={`ray${ray.failure ? ' failed' : ''}`} stroke={fieldColor(ray.field)} d={path(ray.points, view)} />
             ))}

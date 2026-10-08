@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import type { LensSystem, Sample } from '../../../shared/lens'
+import type { ApertureType, FieldType, LensSystem, Sample } from '../../../shared/lens'
 import { useWorkbench } from '../document'
 import { WINDOWS } from '../../../shared/windows'
 import { NumberField } from '../components/NumberField'
@@ -28,23 +28,67 @@ function Section({ title, children, actions }: { title: string; children: ReactN
 
 const FDC = [0.4861327, 0.5875618, 0.6562725]
 
+const APERTURE_TYPES: Array<{ value: ApertureType; label: string; unit: string }> = [
+  { value: 'entrancePupilDiameter', label: 'Entrance pupil diameter', unit: 'mm' },
+  { value: 'imageFNumber', label: 'Image space F/#', unit: '' },
+  { value: 'workingFNumber', label: 'Paraxial working F/#', unit: '' },
+  { value: 'objectNa', label: 'Object space NA', unit: '' },
+  { value: 'floatByStop', label: 'Float by stop size', unit: 'mm' },
+]
+
+const FIELD_TYPES: Array<{ value: FieldType; label: string }> = [
+  { value: 'angle', label: 'Angle (deg)' },
+  { value: 'objectHeight', label: 'Object height (mm)' },
+  { value: 'imageHeight', label: 'Paraxial image height (mm)' },
+]
+
 function SystemExplorer() {
-  const { doc, edit } = useWorkbench()
+  const { doc, edit, engine } = useWorkbench()
   const system = doc.system
   const set = (patch: Partial<LensSystem>) => edit(s => ({ ...s, ...patch }))
+  const apertureType = system.apertureType ?? 'entrancePupilDiameter'
+  const fieldType = system.fieldType ?? 'angle'
+  // Switching type starts from the value the current system already has, so the lens does not jump.
+  const setAperture = (type: ApertureType) => {
+    const o = engine.overview
+    const epd = o?.entrancePupilDiameter ?? system.entrancePupilDiameter
+    const current: Record<ApertureType, number | null | undefined> = {
+      entrancePupilDiameter: epd,
+      imageFNumber: o?.paraxial.fNumber,
+      workingFNumber: o?.paraxial.workingFNumber,
+      objectNa: system.objectDistance !== null && o?.paraxial.entrancePupilZ != null ? Math.sin(Math.atan(epd / 2 / (system.objectDistance + o.paraxial.entrancePupilZ))) : 0.1,
+      floatByStop: o?.paraxial.stopSemiDiameter,
+    }
+    const value = current[type]
+    set({ apertureType: type, entrancePupilDiameter: epd, apertureValue: type === 'entrancePupilDiameter' ? undefined : Number((value ?? 1).toPrecision(6)) })
+  }
   const replaceAt = <T,>(list: T[], index: number, value: T) => list.map((item, i) => i === index ? value : item)
 
   return (
     <>
       <Section title="Aperture">
         <div className="prop-row">
-          <label title="Entrance pupil diameter">Pupil Diameter</label>
-          <NumberField ariaLabel="Entrance pupil diameter" value={system.entrancePupilDiameter} min={0} onCommit={v => v !== null && v !== system.entrancePupilDiameter && set({ entrancePupilDiameter: v })} />
-          <span className="unit">mm</span>
+          <select className="field-select" aria-label="Aperture type" value={apertureType} onChange={event => setAperture(event.target.value as ApertureType)}>
+            {APERTURE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+          </select>
         </div>
+        <div className="prop-row">
+          <label>{APERTURE_TYPES.find(t => t.value === apertureType)!.label}</label>
+          {apertureType === 'entrancePupilDiameter'
+            ? <NumberField ariaLabel="Entrance pupil diameter" value={system.entrancePupilDiameter} min={0} onCommit={v => v !== null && v !== system.entrancePupilDiameter && set({ entrancePupilDiameter: v })} />
+            : <NumberField ariaLabel="Aperture value" value={system.apertureValue ?? null} optional min={0} onCommit={v => v !== null && set({ apertureValue: v })} />}
+          <span className="unit">{APERTURE_TYPES.find(t => t.value === apertureType)!.unit}</span>
+        </div>
+        {apertureType !== 'entrancePupilDiameter' && engine.overview && (
+          <div className="prop-caption">Entrance pupil diameter {engine.overview.entrancePupilDiameter.toFixed(4)} mm</div>
+        )}
       </Section>
       <Section title="Fields" actions={<button className="icon-button" title="Add field" onClick={() => set({ fields: [...system.fields, system.fields[system.fields.length - 1] ?? 0] })}><i className="codicon codicon-add" /></button>}>
-        <div className="prop-caption">Angle (deg)</div>
+        <div className="prop-row">
+          <select className="field-select" aria-label="Field type" value={fieldType} onChange={event => set({ fieldType: event.target.value as FieldType })}>
+            {FIELD_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+          </select>
+        </div>
         {system.fields.map((field, i) => (
           <div className="prop-row list" key={`${i}-${system.fields.length}`}>
             <span className="index" style={{ color: `var(--field-${(i % 6) + 1})` }}>{i + 1}</span>

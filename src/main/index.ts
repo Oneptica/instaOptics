@@ -145,6 +145,15 @@ ipcMain.handle('file:export', async (event, content: string, defaultName: string
   return result.filePath
 })
 
+ipcMain.handle('export:png', async (event, rect: { x: number; y: number; width: number; height: number }, defaultName: string) => {
+  const window = BrowserWindow.fromWebContents(event.sender)!
+  const image = await event.sender.capturePage({ x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) })
+  const result = await dialog.showSaveDialog(window, { defaultPath: `${defaultName}.png`, filters: [{ name: 'PNG image', extensions: ['png'] }] })
+  if (result.canceled || !result.filePath) return null
+  await writeFile(result.filePath, image.toPNG())
+  return result.filePath
+})
+
 ipcMain.on('document:state', (event, state: { dirty: boolean; path: string | null }) => {
   const window = BrowserWindow.fromWebContents(event.sender)
   if (!window) return

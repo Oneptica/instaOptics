@@ -11,7 +11,12 @@ export interface Surface {
   decenter?: [number, number]
   tilt?: [number, number]
   variable?: SurfaceVariables // parameters the optimizer may change
+  /** Makes the surface a coordinate break: decenter (mm), then tilt about x, y, z (degrees) for all later surfaces. */
+  coordinateBreak?: { decenter: [number, number]; tilt: [number, number, number] }
 }
+
+export type ApertureType = 'entrancePupilDiameter' | 'imageFNumber' | 'workingFNumber' | 'objectNa' | 'floatByStop'
+export type FieldType = 'angle' | 'objectHeight' | 'imageHeight'
 
 export interface SurfaceVariables { radius?: boolean; thickness?: boolean; conic?: boolean; aspheric?: boolean[] }
 
@@ -32,7 +37,10 @@ export interface LensSystem {
   surfaces: Surface[]
   stopIndex: number
   entrancePupilDiameter: number
+  apertureType?: ApertureType
+  apertureValue?: number // F/#, NA or stop semi-diameter for the other aperture types
   fields: number[]
+  fieldType?: FieldType
   wavelengths: number[]
   primaryWavelength: number
   rayAiming: boolean
@@ -65,6 +73,7 @@ export interface LayoutRay {
 export interface Layout {
   surfaces: Point[][]
   elements: Point[][]
+  mirrors: number[]
   rays: LayoutRay[]
   stopZ: number
   stopSemiDiameter: number
@@ -74,6 +83,8 @@ export interface Layout {
 
 export interface Overview {
   paraxial: ParaxialData
+  entrancePupilDiameter: number // after converting the aperture type
+  fieldAngles: number[] // degrees, after converting the field type
   automaticSemiDiameters: number[]
   semiDiameters: number[]
   layout: Layout

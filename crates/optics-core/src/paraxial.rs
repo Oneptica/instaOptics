@@ -2,7 +2,7 @@
 
 use serde::Serialize;
 
-use crate::system::{LensError, LensSystem};
+use crate::system::{ApertureType, FieldType, LensError, LensSystem};
 
 /// Heights at each surface and the angle after it.
 pub struct ParaxialRay {
@@ -54,7 +54,8 @@ pub fn paraxial_data(system: &LensSystem) -> Result<ParaxialData, LensError> {
     let parallel = trace(system, &n, 1.0, 0.0);
     let tilted = trace(system, &n, 0.0, 1.0);
     let u_out = parallel.angles[last];
-    let efl = -1.0 / u_out;
+    // n' u' is the reduced angle; with mirrors the image-space index is negative.
+    let efl = -1.0 / (n[last + 1] * u_out);
     let bfl = -parallel.heights[last] / u_out;
     // The chief ray crosses the stop centre; in object space it appears to come from the entrance pupil.
     let entrance_pupil_z = if parallel.heights[stop] == 0.0 { 0.0 } else { tilted.heights[stop] / parallel.heights[stop] };
@@ -93,4 +94,61 @@ pub fn paraxial_data(system: &LensSystem) -> Result<ParaxialData, LensError> {
         exit_pupil_z,
         stop_semi_diameter: marginal.heights[stop].abs(),
     })
+}
+
+/// Returns the system with the aperture expressed as an entrance pupil diameter and the fields as angles in
+/// degrees, which is what the tracer works with. Paraxial optics is linear in the pupil size and in tan(field), so
+/// each conversion is one rescaling of a trial value.
+pub fn resolved(system: &LensSystem) -> Result<LensSystem, LensError> {
+    if system.aperture_type == ApertureType::EntrancePupilDiameter && system.field_type == FieldType::Angle {
+        return Ok(system.clone());
+    }
+    let mut out = system.clone();
+    if !(out.entrance_pupil_diameter > 0.0 && out.entrance_pupil_diameter.is_finite()) {
+        out.entrance_pupil_diameter = 10.0;
+    }
+    if out.aperture_type != ApertureType::EntrancePupilDiameter {
+        let value = out.aperture_value.filter(|v| *v > 0.0 && v.is_finite())
+            .ok_or_else(|| LensError("Set a positive aperture value".into()))?;
+        let trial = paraxial_data(&out)?;
+        let epd = out.entrance_pupil_diameter;
+        out.entrance_pupil_diameter = match out.aperture_type {
+            ApertureType::EntrancePupilDiameter => epd,
+            ApertureType::ImageFNumber => trial.efl.abs() / value,
+            ApertureType::WorkingFNumber => epd * trial.working_f_number / value,
+            ApertureType::FloatByStop => epd * value / trial.stop_semi_diameter,
+            ApertureType::ObjectNa => {
+                let distance = out.object_distance.ok_or_else(|| LensError("Object NA needs a finite object distance".into()))?;
+                if value >= 1.0 {
+                    return Err(LensError("Object NA must be below 1".into()));
+                }
+                2.0 * (distance + trial.entrance_pupil_z) * value.asin().tan()
+            }
+        };
+        if !(out.entrance_pupil_diameter > 0.0 && out.entrance_pupil_diameter.is_finite()) {
+            return Err(LensError("The aperture cannot be reached with this system".into()));
+        }
+        out.aperture_type = ApertureType::EntrancePupilDiameter;
+        out.aperture_value = None;
+    }
+    if out.field_type != FieldType::Angle {
+        let entrance_pupil_z = paraxial_data(&out)?.entrance_pupil_z;
+        let scale = match out.field_type {
+            FieldType::Angle => 1.0,
+            // tan θ = h / (object distance + pupil distance)
+            FieldType::ObjectHeight => out.object_distance.ok_or_else(|| LensError("Object height fields need a finite object distance".into()))? + entrance_pupil_z,
+            FieldType::ImageHeight => {
+                let n = out.medium_indices(out.primary_wavelength())?;
+                let last = out.last();
+                let chief = trace(&out, &n, -entrance_pupil_z, 1.0);
+                chief.heights[last] + chief.angles[last] * out.surfaces[last].thickness
+            }
+        };
+        if scale == 0.0 || !scale.is_finite() {
+            return Err(LensError("Cannot convert the fields to angles for this system".into()));
+        }
+        out.fields = out.fields.iter().map(|h| (h / scale).atan().to_degrees()).collect();
+        out.field_type = FieldType::Angle;
+    }
+    Ok(out)
 }

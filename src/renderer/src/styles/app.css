@@ -443,3 +443,10 @@ button, input, select { font: inherit; color: inherit; }
   position: absolute; left: 50%; transform: translateX(-50%); max-width: 40%;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; color: var(--text-muted); pointer-events: none;
 }
+.plot .mirror { stroke: var(--text-strong); stroke-width: 2.5; }
+.grid-row.header .grid-cell.cb { color: var(--accent); }
+.field-select { width: 100%; height: 22px; background: var(--bg-input); border: 1px solid var(--border-strong); border-radius: 2px; color: var(--text); }
+.footprint { flex: 1; min-height: 0; display: grid; place-items: center; }
+.footprint .frame { fill: none; stroke: var(--plot-axis); }
+.footprint .cross { stroke: var(--plot-grid); }
+.footprint .aperture { fill: none; stroke: var(--text-strong); stroke-width: 1.2; stroke-dasharray: 4 3; }

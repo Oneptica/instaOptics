@@ -5,7 +5,6 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::analysis::hexapolar;
-use crate::glass::is_air;
 use crate::paraxial::paraxial_data;
 use crate::system::{GlassOffset, LensSystem};
 use crate::trace::TraceContext;
@@ -72,8 +71,11 @@ pub fn parameters(system: &LensSystem, settings: &ToleranceSettings) -> Vec<Para
     let mut list = Vec::new();
     let last = system.last();
     for (i, surface) in system.surfaces.iter().enumerate() {
-        let glass_before = i > 0 && !is_air(&system.surfaces[i - 1].material);
-        let optical = surface.radius != 0.0 || !is_air(&surface.material) || glass_before;
+        if surface.coordinate_break.is_some() {
+            continue;
+        }
+        let glass_before = i > 0 && system.surfaces[i - 1].is_glass();
+        let optical = surface.radius != 0.0 || surface.is_glass() || surface.is_mirror() || glass_before;
         let mut push = |kind, tolerance: f64, when: bool| {
             if when && tolerance > 0.0 {
                 list.push(Parameter { surface: i, kind, tolerance });
@@ -83,8 +85,8 @@ pub fn parameters(system: &LensSystem, settings: &ToleranceSettings) -> Vec<Para
         push(ParameterKind::Thickness, settings.thickness, i < last);
         push(ParameterKind::Decenter, settings.decenter, optical);
         push(ParameterKind::Tilt, settings.tilt, optical);
-        push(ParameterKind::Index, settings.index, !is_air(&surface.material));
-        push(ParameterKind::Abbe, settings.abbe, !is_air(&surface.material));
+        push(ParameterKind::Index, settings.index, surface.is_glass());
+        push(ParameterKind::Abbe, settings.abbe, surface.is_glass());
     }
     list
 }
@@ -121,6 +123,7 @@ pub fn perturb(system: &LensSystem, perturbations: &[(Parameter, f64)]) -> LensS
 /// image-plane shift that minimizes it is solved in closed form: landing points move linearly with the shift, so the
 /// mean square radius is quadratic in it.
 pub fn criterion(system: &LensSystem, refocus: bool) -> f64 {
+    let Ok(system) = &crate::paraxial::resolved(system) else { return f64::INFINITY };
     let Ok(paraxial) = paraxial_data(system) else { return f64::INFINITY };
     let context = TraceContext::new(system, &paraxial);
     let pupil = hexapolar(4);

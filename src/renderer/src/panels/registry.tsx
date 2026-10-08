@@ -2,6 +2,7 @@ import { Suspense, lazy, type ReactNode } from 'react'
 import { WINDOWS } from '../../../shared/windows'
 import { FieldCurvesPanel, IlluminationPanel, MtfPanel, PsfPanel, RayFanPanel, SeidelPanel, SpotPanel, WavefrontPanel } from '../analysis/panels'
 import { LayoutView } from './LayoutView'
+import { ChromaticFocalShiftPanel, FootprintPanel, MtfVsFieldPanel, ThroughFocusPanel } from '../analysis/morePanels'
 import { ImageSimPanel } from './ImageSimPanel'
 import { LensDataEditor } from './LensDataEditor'
 import { OptimizePanel } from './OptimizePanel'
@@ -26,6 +27,10 @@ const RENDER: Record<string, () => ReactNode> = {
   fieldCurves: () => <FieldCurvesPanel />,
   seidel: () => <SeidelPanel />,
   illumination: () => <IlluminationPanel />,
+  throughFocus: () => <ThroughFocusPanel />,
+  mtfVsField: () => <MtfVsFieldPanel />,
+  chromaticFocalShift: () => <ChromaticFocalShiftPanel />,
+  footprint: () => <FootprintPanel />,
   optimize: () => <OptimizePanel />,
   tolerance: () => <TolerancePanel />,
   imageSim: () => <ImageSimPanel />,

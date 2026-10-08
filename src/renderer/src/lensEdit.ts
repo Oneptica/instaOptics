@@ -69,6 +69,12 @@ export function clearVariables(system: LensSystem): LensSystem {
   return { ...system, surfaces: system.surfaces.map(({ variable: _variable, ...surface }) => surface) }
 }
 
+export function toggleCoordinateBreak(system: LensSystem, index: number): LensSystem {
+  const surface = system.surfaces[index]
+  if (surface.coordinateBreak) return updateSurface(system, index, { coordinateBreak: undefined })
+  return updateSurface(system, index, { coordinateBreak: { decenter: [0, 0], tilt: [0, 0, 0] }, radius: 0, conic: undefined, aspheric: undefined, variable: undefined })
+}
+
 export function setStop(system: LensSystem, index: number): LensSystem {
   return system.stopIndex === index ? system : { ...system, stopIndex: index }
 }
@@ -77,7 +83,7 @@ const MODEL_GLASS = /^\s*\d+(\.\d+)?\s*\/\s*\d+(\.\d+)?\s*$/
 
 export function isKnownMaterial(material: string, glasses: GlassInfo[]): boolean {
   const name = material.trim().toUpperCase()
-  return name === '' || name === 'AIR' || MODEL_GLASS.test(name) || glasses.some(glass => glass.name.toUpperCase() === name)
+  return name === '' || name === 'AIR' || name === 'MIRROR' || MODEL_GLASS.test(name) || glasses.some(glass => glass.name.toUpperCase() === name)
 }
 
 /** Parses a numeric cell; "inf"/"infinity" gives Infinity. Returns null when the text is not a number. */

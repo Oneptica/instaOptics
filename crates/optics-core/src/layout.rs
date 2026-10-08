@@ -2,7 +2,6 @@
 
 use serde::Serialize;
 
-use crate::glass::is_air;
 use crate::surface::{sag, surface_limit};
 use crate::system::LensError;
 use crate::trace::{FailureReason, TraceContext};
@@ -23,6 +22,8 @@ pub struct Layout {
     pub surfaces: Vec<Vec<[f64; 2]>>,
     /// Closed (z, y) outlines of each glass element, flat flanges included.
     pub elements: Vec<Vec<[f64; 2]>>,
+    /// Indices into `surfaces` of reflecting surfaces.
+    pub mirrors: Vec<usize>,
     pub rays: Vec<LayoutRay>,
     pub stop_z: f64,
     pub stop_semi_diameter: f64,
@@ -32,25 +33,39 @@ pub struct Layout {
 
 const STEPS: usize = 32;
 
+/// Ray points to draw: coordinate-break crossings are bookkeeping, not real vertices of the path.
+fn drawn(system: &crate::system::LensSystem, world: &[[f64; 3]]) -> Vec<[f64; 3]> {
+    world.iter().enumerate()
+        .filter(|&(k, _)| k == 0 || system.surfaces.get(k - 1).is_none_or(|s| s.coordinate_break.is_none()))
+        .map(|(_, p)| *p)
+        .collect()
+}
+
 /// Profile of surface `i` at vertex `z0`, out to `edge`, with the sag frozen beyond the clear aperture `h`.
 fn profile(context: &TraceContext, i: usize, h: f64, edge: f64) -> Vec<[f64; 2]> {
     let surface = &context.system.surfaces[i];
     let clear = h.min(surface_limit(surface));
+    let frame = &context.frames[i];
     (0..=2 * STEPS)
         .map(|k| {
             let y = edge * (k as f64 / STEPS as f64 - 1.0);
-            [context.z[i] + sag(surface, y.abs().min(clear)), y]
+            let sag = if surface.coordinate_break.is_some() { 0.0 } else { sag(surface, y.abs().min(clear)) };
+            let g = frame.to_global([0.0, y, sag]);
+            [g[2], g[1]]
         })
         .collect()
 }
 
 pub fn layout(context: &TraceContext, semi_diameters: &[f64], rays_per_field: usize) -> Result<Layout, LensError> {
     let system = context.system;
-    let surfaces = (0..system.surfaces.len()).map(|i| profile(context, i, semi_diameters[i], semi_diameters[i])).collect();
+    // Coordinate breaks are not drawn.
+    let surfaces = (0..system.surfaces.len())
+        .map(|i| if system.surfaces[i].coordinate_break.is_some() { Vec::new() } else { profile(context, i, semi_diameters[i], semi_diameters[i]) })
+        .collect();
 
     let mut elements = Vec::new();
     for i in 0..system.surfaces.len().saturating_sub(1) {
-        if is_air(&system.surfaces[i].material) {
+        if !system.surfaces[i].is_glass() {
             continue;
         }
         let edge = semi_diameters[i].max(semi_diameters[i + 1]);
@@ -69,7 +84,7 @@ pub fn layout(context: &TraceContext, semi_diameters: &[f64], rays_per_field: us
             let ray = context.trace_ray(field, 0.0, py, wavelength, &n);
             rays.push(LayoutRay {
                 field: field_index,
-                points: ray.points.iter().map(|p| [p[2], p[1]]).collect(),
+                points: drawn(system, &ray.world).iter().map(|p| [p[2], p[1]]).collect(),
                 failure: ray.failure.map(|failure| failure.reason),
             });
         }
@@ -79,11 +94,12 @@ pub fn layout(context: &TraceContext, semi_diameters: &[f64], rays_per_field: us
     Ok(Layout {
         surfaces,
         elements,
+        mirrors: (0..system.surfaces.len()).filter(|&i| system.surfaces[i].is_mirror()).collect(),
         rays,
-        stop_z: context.z[stop],
+        stop_z: context.frames[stop].origin[2],
         stop_semi_diameter: semi_diameters[stop],
         start_z: context.start_z,
-        image_z: context.image_z,
+        image_z: context.image_frame.origin[2],
     })
 }
 
@@ -116,7 +132,7 @@ pub fn layout_3d(context: &TraceContext, semi_diameters: &[f64], ring: usize) ->
     let half = |points: Vec<[f64; 2]>| -> Vec<[f64; 2]> { points.into_iter().filter(|p| p[1] >= 0.0).map(|[z, y]| [y, z]).collect() };
     let mut elements = Vec::new();
     for i in 0..system.surfaces.len().saturating_sub(1) {
-        if is_air(&system.surfaces[i].material) {
+        if !system.surfaces[i].is_glass() {
             continue;
         }
         let edge = semi_diameters[i].max(semi_diameters[i + 1]);
@@ -127,7 +143,7 @@ pub fn layout_3d(context: &TraceContext, semi_diameters: &[f64], ring: usize) ->
         elements.push(outline);
     }
     let surfaces = (0..system.surfaces.len())
-        .filter(|&i| is_air(&system.surfaces[i].material) && (i == 0 || is_air(&system.surfaces[i - 1].material)) && i != system.stop())
+        .filter(|&i| system.surfaces[i].coordinate_break.is_none() && !system.surfaces[i].is_glass() && (i == 0 || !system.surfaces[i - 1].is_glass()) && i != system.stop())
         .map(|i| half(profile(context, i, semi_diameters[i], semi_diameters[i])))
         .collect();
     let wavelength = system.primary_wavelength();
@@ -145,7 +161,7 @@ pub fn layout_3d(context: &TraceContext, semi_diameters: &[f64], ring: usize) ->
             if ray.ok() {
                 image_semi_height = image_semi_height.max(ray.end()[0].hypot(ray.end()[1]));
             }
-            rays.push(Ray3d { field: field_index, points: ray.points });
+            rays.push(Ray3d { field: field_index, points: drawn(system, &ray.world) });
         }
     }
     let stop = system.stop();
@@ -153,10 +169,10 @@ pub fn layout_3d(context: &TraceContext, semi_diameters: &[f64], ring: usize) ->
         elements,
         surfaces,
         rays,
-        stop_z: context.z[stop],
+        stop_z: context.frames[stop].origin[2],
         stop_semi_diameter: semi_diameters[stop],
         start_z: context.start_z,
-        image_z: context.image_z,
+        image_z: context.image_frame.origin[2],
         image_semi_height,
     })
 }

@@ -3,7 +3,7 @@ import type { LensSystem } from '../../../shared/lens'
 import { useWorkbench } from '../document'
 import { formatFixed } from '../format'
 import {
-  type VariableKey, deleteSurface, insertSurface, isKnownMaterial, isVariable, parseNumber, setAspheric, setStop, toggleVariable, updateSurface,
+  type VariableKey, deleteSurface, toggleCoordinateBreak, insertSurface, isKnownMaterial, isVariable, parseNumber, setAspheric, setStop, toggleVariable, updateSurface,
 } from '../lensEdit'
 
 type ColumnKey = 'radius' | 'thickness' | 'material' | 'semiDiameter' | 'conic' | 'a0' | 'a1' | 'a2' | 'a3'
@@ -23,6 +23,16 @@ const COLUMNS: { key: ColumnKey; label: string; title: string }[] = [
 const VARIABLE_KEYS = new Set<ColumnKey>(['radius', 'thickness', 'conic', 'a0', 'a1', 'a2', 'a3'])
 const term = (key: ColumnKey) => Number(key.slice(1))
 const formatCoefficient = (value: number) => value === 0 ? '0' : value.toExponential(6)
+
+// On a coordinate break row the parameter columns hold the break's decenters and tilts.
+const CB_COLUMNS: Partial<Record<ColumnKey, { label: string; read: (cb: CoordinateBreak) => number; write: (cb: CoordinateBreak, v: number) => CoordinateBreak }>> = {
+  conic: { label: 'Decenter X', read: cb => cb.decenter[0], write: (cb, v) => ({ ...cb, decenter: [v, cb.decenter[1]] }) },
+  a0: { label: 'Decenter Y', read: cb => cb.decenter[1], write: (cb, v) => ({ ...cb, decenter: [cb.decenter[0], v] }) },
+  a1: { label: 'Tilt X', read: cb => cb.tilt[0], write: (cb, v) => ({ ...cb, tilt: [v, cb.tilt[1], cb.tilt[2]] }) },
+  a2: { label: 'Tilt Y', read: cb => cb.tilt[1], write: (cb, v) => ({ ...cb, tilt: [cb.tilt[0], v, cb.tilt[2]] }) },
+  a3: { label: 'Tilt Z', read: cb => cb.tilt[2], write: (cb, v) => ({ ...cb, tilt: [cb.tilt[0], cb.tilt[1], v] }) },
+}
+type CoordinateBreak = NonNullable<LensSystem['surfaces'][number]['coordinateBreak']>
 
 interface Cell { text: string; editable: boolean; invalid?: boolean; note?: string; variable?: boolean; muted?: boolean }
 
@@ -60,6 +70,11 @@ export function LensDataEditor() {
       return { text: '', editable: false, muted: true }
     }
     const surface = system.surfaces[r - 1]
+    if (surface.coordinateBreak) {
+      if (key === 'thickness') return { text: formatFixed(surface.thickness), editable: true }
+      const param = CB_COLUMNS[key]
+      return param ? { text: formatFixed(param.read(surface.coordinateBreak)), editable: true } : { text: '', editable: false, muted: true }
+    }
     const variable = VARIABLE_KEYS.has(key) && isVariable(surface, key as VariableKey)
     switch (key) {
       case 'radius': return { text: surface.radius === 0 ? 'Infinity' : formatFixed(surface.radius), editable: true, variable }
@@ -86,6 +101,8 @@ export function LensDataEditor() {
     const key = COLUMNS[c].key
     if (r === 0) return system.objectDistance === null ? 'Infinity' : String(system.objectDistance)
     const surface = system.surfaces[r - 1]
+    const param = surface.coordinateBreak && CB_COLUMNS[key]
+    if (param && surface.coordinateBreak) return String(param.read(surface.coordinateBreak))
     if (key === 'radius') return surface.radius === 0 ? 'Infinity' : String(surface.radius)
     if (key === 'thickness') return String(surface.thickness)
     if (key === 'material') return cell(r, c).text
@@ -105,6 +122,14 @@ export function LensDataEditor() {
       return true
     }
     const index = r - 1
+    const cb = system.surfaces[index].coordinateBreak
+    const param = cb && CB_COLUMNS[key]
+    if (cb && param) {
+      const value = parseNumber(text)
+      if (value === null || !Number.isFinite(value)) return false
+      edit(s => updateSurface(s, index, { coordinateBreak: param.write(cb, value) }))
+      return true
+    }
     let patch: Partial<LensSystem['surfaces'][number]>
     if (key === 'material') {
       const material = text.trim().toUpperCase()
@@ -199,6 +224,9 @@ export function LensDataEditor() {
         <button className="tool labeled" title="Toggle the selected cell as an optimization variable (Ctrl+T)" disabled={!canToggle} onClick={() => toggle()}>
           <i className="codicon codicon-symbol-variable" /> Variable
         </button>
+        <button className="tool labeled" title="Turn the selected surface into a coordinate break, or back" disabled={surfaceIndex === null} onClick={() => { if (surfaceIndex !== null) edit(s => toggleCoordinateBreak(s, surfaceIndex)) }}>
+          <i className="codicon codicon-debug-step-over" /> Coordinate Break
+        </button>
         <span className="toolbar-fill" />
         <span className="toolbar-info">
           {row === 0 ? 'Object' : row === n + 1 ? 'Image' : `Surface ${row}${row - 1 === system.stopIndex ? ' (stop)' : ''}`}
@@ -210,13 +238,17 @@ export function LensDataEditor() {
           <div className="grid-row header" role="row">
             <div className="grid-cell head label" role="columnheader">Surf</div>
             <div className="grid-cell head type" role="columnheader">Type</div>
-            {COLUMNS.map(column => <div key={column.key} className="grid-cell head" role="columnheader" title={column.title}>{column.label}</div>)}
+            {COLUMNS.map(column => {
+              // Like Zemax, parameter headers follow the selected row's surface type.
+              const cbLabel = surfaceIndex !== null && system.surfaces[surfaceIndex].coordinateBreak ? CB_COLUMNS[column.key]?.label : undefined
+              return <div key={column.key} className={`grid-cell head${cbLabel ? ' cb' : ''}`} role="columnheader" title={column.title}>{cbLabel ?? column.label}</div>
+            })}
           </div>
           {Array.from({ length: rowCount }, (_, r) => {
             const isStop = r - 1 === system.stopIndex
             const label = r === 0 ? 'OBJ' : r === n + 1 ? 'IMA' : isStop ? 'STO' : String(r)
             const surface = r >= 1 && r <= n ? system.surfaces[r - 1] : null
-            const type = surface?.aspheric?.some(Boolean) ? 'Even Asphere' : 'Standard'
+            const type = surface?.coordinateBreak ? 'Coord Break' : surface?.aspheric?.some(Boolean) ? 'Even Asphere' : 'Standard'
             return (
               <div key={r} className={`grid-row${r === row ? ' selected' : ''}${r % 2 ? ' alt' : ''}`} role="row">
                 <div className={`grid-cell label${isStop ? ' stop' : ''}`} role="rowheader" onMouseDown={() => setSelection({ row: r, col })}>{label}</div>
@@ -255,7 +287,7 @@ export function LensDataEditor() {
                     >
                       {value.text}
                       {value.note && <span className="cell-note" title="Fixed by the user">{value.note}</span>}
-                      {r >= 1 && r <= n && VARIABLE_KEYS.has(column.key) && (
+                      {r >= 1 && r <= n && VARIABLE_KEYS.has(column.key) && !system.surfaces[r - 1].coordinateBreak && (
                         <span
                           className={`solve${value.variable ? ' on' : ''}`}
                           title={value.variable ? 'Variable (click to fix)' : 'Make variable'}

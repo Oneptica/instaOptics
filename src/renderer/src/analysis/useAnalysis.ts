@@ -15,6 +15,11 @@ export interface MtfResult { frequencies: number[]; cutoff: number; fields: Arra
 export interface Illumination { angles: number[]; relative: number[]; unvignetted: number[]; cos4: number[] }
 export interface PsfResult { field: number; size: number; spacing: number; data: number[]; strehl: number; radius: number[]; energy: number[]; diffraction: number[] }
 
+export interface ThroughFocus { frequency: number; shifts: number[]; fields: Array<{ field: number; tangential: number[]; sagittal: number[] }> }
+export interface MtfVsField { angles: number[]; frequencies: number[]; curves: Array<{ field: number; tangential: number[]; sagittal: number[] }> }
+export interface ChromaticFocalShift { wavelengths: number[]; shift: number[]; range: number }
+export interface Footprint { surface: number; fields: Array<Array<[number, number]>>; semiDiameter: number }
+
 export type AnalysisRequest =
   | { kind: 'spot'; rings: number }
   | { kind: 'rayFan'; samples: number }
@@ -25,6 +30,10 @@ export type AnalysisRequest =
   | { kind: 'illumination'; samples: number }
   | { kind: 'psf'; field: number; samples: number; padding: number; crop: number }
   | { kind: 'layout3d'; ring: number }
+  | { kind: 'throughFocus'; frequency: number; range: number; steps: number }
+  | { kind: 'mtfVsField'; frequencies: number[]; samples: number }
+  | { kind: 'chromaticFocalShift'; samples: number }
+  | { kind: 'footprint'; surface: number; rings: number }
 
 export interface AnalysisState<T> { result: T | null; error: string | null; ms: number | null; busy: boolean }
 

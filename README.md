@@ -20,9 +20,11 @@ Try it in the browser: **[instaoptics.oneptica.com](https://instaoptics.oneptica
 
 ## Features
 
-- Sequential ray tracing: spherical, conic and even-asphere surfaces, real ray aiming, decenter and tilt
+- Sequential ray tracing: spherical, conic and even-asphere surfaces, mirrors, coordinate breaks, real ray aiming
+- Aperture: entrance pupil diameter, F/#, object NA, float by stop; fields: angle, object height, image height
 - Glasses: Schott catalog, fused silica, CaF₂, `nd/vd` model glasses
-- Spot diagram, ray fan, FFT MTF, FFT PSF, wavefront map, field curvature and distortion, Seidel aberrations, relative illumination
+- Spot diagram, ray fan, FFT MTF, through-focus MTF, MTF vs field, FFT PSF, wavefront map, field curvature and distortion, chromatic focal shift, Seidel aberrations, relative illumination, footprint
+- Export plots as PNG and data as CSV
 - Image simulation on a test chart or any image
 - Tolerancing: sensitivity and Monte Carlo
 - Optimization (damped least squares)

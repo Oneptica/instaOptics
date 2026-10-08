@@ -22,6 +22,8 @@ export interface InstaOpticsApi {
     importBinary(name: string, extensions: string[]): Promise<{ path: string; bytes: Uint8Array } | null>
     /** Asks where to write `content`; resolves to the path written or null. */
     export(content: string, defaultName: string, name: string, extensions: string[]): Promise<string | null>
+    /** Saves a screenshot of a region of the window (CSS pixels) as PNG. */
+    exportPng(rect: { x: number; y: number; width: number; height: number }, defaultName: string): Promise<string | null>
   }
   onMenu(callback: (command: MenuCommand) => void): () => void
   setDocumentState(state: { dirty: boolean; path: string | null }): void

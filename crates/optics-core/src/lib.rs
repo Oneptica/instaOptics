@@ -14,7 +14,7 @@ pub mod vec3;
 
 use serde::{Deserialize, Serialize};
 
-pub use paraxial::{ParaxialData, paraxial_data};
+pub use paraxial::{ParaxialData, paraxial_data, resolved};
 pub use system::{LensError, LensSystem, Surface};
 pub use trace::{RealRay, TraceContext};
 
@@ -23,6 +23,9 @@ pub use trace::{RealRay, TraceContext};
 #[serde(rename_all = "camelCase")]
 pub struct Overview {
     pub paraxial: ParaxialData,
+    /// Entrance pupil diameter and field angles (degrees) after converting the aperture and field types.
+    pub entrance_pupil_diameter: f64,
+    pub field_angles: Vec<f64>,
     /// Automatic clear semi-apertures, before any fixed values are applied.
     pub automatic_semi_diameters: Vec<f64>,
     pub semi_diameters: Vec<f64>,
@@ -31,12 +34,13 @@ pub struct Overview {
 
 pub fn overview(system: &LensSystem, rays_per_field: usize) -> Result<Overview, LensError> {
     system.validate()?;
+    let system = &resolved(system)?;
     let paraxial = paraxial_data(system)?;
     let context = TraceContext::new(system, &paraxial);
     let automatic_semi_diameters = trace::automatic_semi_diameters(&context)?;
     let semi_diameters = trace::effective_semi_diameters(system, &automatic_semi_diameters);
     let layout = layout::layout(&context, &semi_diameters, rays_per_field)?;
-    Ok(Overview { paraxial, automatic_semi_diameters, semi_diameters, layout })
+    Ok(Overview { paraxial, entrance_pupil_diameter: system.entrance_pupil_diameter, field_angles: system.fields.clone(), automatic_semi_diameters, semi_diameters, layout })
 }
 
 /// One analysis window's request. Field and wavelength are indices into the system's lists.
@@ -52,6 +56,10 @@ pub enum AnalysisRequest {
     Illumination { samples: usize },
     Psf { field: usize, samples: usize, padding: usize, crop: usize },
     Layout3d { ring: usize },
+    ThroughFocus { frequency: f64, range: f64, steps: usize },
+    MtfVsField { frequencies: Vec<f64>, samples: usize },
+    ChromaticFocalShift { samples: usize },
+    Footprint { surface: usize, rings: usize },
 }
 
 fn to_value<T: Serialize>(value: T) -> serde_json::Value {
@@ -61,10 +69,11 @@ fn to_value<T: Serialize>(value: T) -> serde_json::Value {
 /// Runs one analysis and returns its result as JSON (non-finite numbers become null).
 pub fn analyze(system: &LensSystem, request: &AnalysisRequest) -> Result<serde_json::Value, LensError> {
     system.validate()?;
+    let system = &resolved(system)?;
     let paraxial = paraxial_data(system)?;
     let context = TraceContext::new(system, &paraxial);
     let pick = |list: &[f64], index: usize, what: &str| list.get(index).copied().ok_or_else(|| LensError(format!("No {what} {}", index + 1)));
-    Ok(match *request {
+    Ok(match request.clone() {
         AnalysisRequest::Spot { rings } => to_value(analysis::spot_diagram(&context, rings.clamp(1, 40))?),
         AnalysisRequest::RayFan { samples } => to_value(analysis::ray_fan(&context, samples.clamp(3, 501))?),
         AnalysisRequest::Seidel => to_value(analysis::seidel(system, &paraxial)?),
@@ -77,6 +86,20 @@ pub fn analyze(system: &LensSystem, request: &AnalysisRequest) -> Result<serde_j
             to_value(analysis::mtf(&context, &paraxial, size.clamp(16, 256).next_power_of_two(), points.clamp(2, 1001), max_frequency)?)
         }
         AnalysisRequest::Illumination { samples } => to_value(analysis::relative_illumination(&context, &paraxial, samples.clamp(2, 201), 14, 48)?),
+        AnalysisRequest::ThroughFocus { frequency, range, steps } => {
+            if !(frequency > 0.0 && range > 0.0) {
+                return Err(LensError("Frequency and focus range must be positive".into()));
+            }
+            to_value(analysis::through_focus_mtf(system, frequency, range, steps.clamp(3, 101), 64)?)
+        }
+        AnalysisRequest::MtfVsField { frequencies, samples } => to_value(analysis::mtf_vs_field(&context, &paraxial, &frequencies, samples.clamp(2, 51), 64)?),
+        AnalysisRequest::ChromaticFocalShift { samples } => to_value(analysis::chromatic_focal_shift(system, samples.clamp(3, 401))?),
+        AnalysisRequest::Footprint { surface, rings } => {
+            let index = surface.min(system.last());
+            let automatic = trace::automatic_semi_diameters(&context)?;
+            let semi = trace::effective_semi_diameters(system, &automatic);
+            to_value(analysis::footprint(&context, index, rings.clamp(2, 20), semi[index])?)
+        }
         AnalysisRequest::Layout3d { ring } => {
             let automatic = trace::automatic_semi_diameters(&context)?;
             let semi = trace::effective_semi_diameters(system, &automatic);

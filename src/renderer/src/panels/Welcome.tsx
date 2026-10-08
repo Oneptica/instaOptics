@@ -41,7 +41,7 @@ function MiniLayout({ system }: { system: LensSystem }) {
 function SampleCard({ sample, onOpen }: { sample: Sample; onOpen: () => void }) {
   const s = sample.system
   // Each glass between two surfaces is one element; a cemented doublet has two.
-  const lenses = s.surfaces.filter(surface => surface.material.trim() !== '' && surface.material.trim().toUpperCase() !== 'AIR').length
+  const lenses = s.surfaces.filter(surface => !surface.coordinateBreak && !['', 'AIR', 'MIRROR'].includes(surface.material.trim().toUpperCase())).length
   const fov = 2 * Math.max(...s.fields.map(Math.abs))
   return (
     <button className="sample-card" onClick={onOpen} title={`Open ${s.name}`}>

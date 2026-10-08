@@ -60,6 +60,7 @@ const api: InstaOpticsApi = {
     save: (path, content, suggestedName) => ipcRenderer.invoke('file:save', path, content, suggestedName),
     importBinary: (name, extensions) => ipcRenderer.invoke('file:importBinary', name, extensions),
     export: (content, defaultName, name, extensions) => ipcRenderer.invoke('file:export', content, defaultName, name, extensions),
+    exportPng: (rect, defaultName) => ipcRenderer.invoke('export:png', rect, defaultName),
   },
   onMenu(callback) {
     const listener = (_event: IpcRendererEvent, command: MenuCommand) => callback(command)

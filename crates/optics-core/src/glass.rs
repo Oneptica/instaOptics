@@ -75,6 +75,10 @@ pub fn is_air(material: &str) -> bool {
     name.is_empty() || name.eq_ignore_ascii_case("AIR")
 }
 
+pub fn is_mirror(material: &str) -> bool {
+    material.trim().eq_ignore_ascii_case("MIRROR")
+}
+
 /// Parses a model glass written as "nd/vd", e.g. "1.5168/64.17".
 pub fn parse_model_glass(material: &str) -> Option<(f64, f64)> {
     let (nd, vd) = material.trim().split_once('/')?;
@@ -84,7 +88,7 @@ pub fn parse_model_glass(material: &str) -> Option<(f64, f64)> {
 }
 
 pub fn is_known_material(material: &str) -> bool {
-    is_air(material) || find(material).is_some() || parse_model_glass(material).is_some()
+    is_air(material) || is_mirror(material) || find(material).is_some() || parse_model_glass(material).is_some()
 }
 
 /// Refractive index of a material at a wavelength in µm, or None when the material is unknown.
