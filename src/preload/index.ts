@@ -68,6 +68,11 @@ const api: InstaOpticsApi = {
   },
   setDocumentState: state => ipcRenderer.send('document:state', state),
   closeWindow: () => ipcRenderer.send('window:close'),
+  menu: {
+    get: () => ipcRenderer.invoke('menu:get'),
+    invoke: path => ipcRenderer.send('menu:invoke', path),
+  },
+  setTitleBarColors: colors => ipcRenderer.send('window:titleBar', colors),
   setSoftwareRendering: enabled => ipcRenderer.send('app:softwareRendering', enabled),
 }
 

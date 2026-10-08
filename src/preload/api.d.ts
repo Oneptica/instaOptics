@@ -26,6 +26,12 @@ export interface InstaOpticsApi {
   onMenu(callback: (command: MenuCommand) => void): () => void
   setDocumentState(state: { dirty: boolean; path: string | null }): void
   closeWindow(): void
+  menu: {
+    get(): Promise<Array<{ label: string; items: Array<{ label: string; accelerator?: string; type: string; checked: boolean; enabled: boolean; path: number[] }> }>>
+    invoke(path: number[]): void
+  }
+  /** Colours of the OS window buttons drawn over the title bar (Windows and Linux). */
+  setTitleBarColors(colors: { color: string; symbolColor: string }): void
   /** Saves the 3D rendering mode and restarts the app. */
   setSoftwareRendering(enabled: boolean): void
 }

@@ -8,6 +8,7 @@ import {
 import { formatFixed } from './format'
 import { PANELS, panelTitle } from './panels/registry'
 import { showWelcomeOnStartup } from './panels/Welcome'
+import { TitleBar } from './TitleBar'
 import { decodeZmx, exportZmx, importZmx } from './zemax'
 import { SIDEBAR_VIEWS, Sidebar, type SidebarView } from './sidebar/Sidebar'
 
@@ -45,6 +46,8 @@ function defaultLayout(dock: DockviewApi) {
 function openPanel(dock: DockviewApi | null, id: string) {
   if (!dock || !components[id]) return
   if (dock.hasMaximizedGroup()) dock.exitMaximizedGroup()
+  // The welcome page is a start page: opening any window closes it.
+  if (id !== 'welcome') dock.getPanel('welcome')?.api.close()
   const existing = dock.getPanel(id)
   if (existing) { existing.api.setActive(); return }
   // Editor-side windows share the Lens Data group; analysis windows join the group of an open analysis window.
@@ -110,14 +113,17 @@ export function App() {
 
   // Window title and the main process's view of unsaved changes.
   const dirty = isDirty(doc)
+  const windowTitle = `${dirty ? '● ' : ''}${doc.path ? fileName(doc.path) : doc.system.name} — instaOptics`
   useEffect(() => {
-    document.title = `${dirty ? '● ' : ''}${doc.path ? fileName(doc.path) : doc.system.name} — instaOptics`
+    document.title = windowTitle
     api.setDocumentState({ dirty, path: doc.path })
-  }, [dirty, doc.path, doc.system.name])
+  }, [dirty, doc.path, windowTitle])
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
     storage.set(KEYS.theme, theme)
+    const style = getComputedStyle(document.documentElement)
+    api.setTitleBarColors({ color: style.getPropertyValue('--bg-header').trim(), symbolColor: style.getPropertyValue('--text').trim() })
   }, [theme])
 
   const confirmDiscard = useCallback(() => !isDirty(docRef.current) || window.confirm('Discard unsaved changes to the current lens?'), [])
@@ -229,6 +235,7 @@ export function App() {
   return (
     <WorkbenchContext.Provider value={workbench}>
       <div className="workbench">
+        <TitleBar title={windowTitle} />
         <div className="workbench-main">
           <nav className="activity-bar" aria-label="Views">
             {SIDEBAR_VIEWS.map(item => (

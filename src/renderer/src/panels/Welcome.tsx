@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { LensSystem, Overview, Point, Sample } from '../../../shared/lens'
-import logo from '../assets/logo.svg'
+import logo from '../assets/logo.png'
 import { useWorkbench } from '../document'
 import { fieldColor, formatFixed, formatShort } from '../format'
 

@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
-import { BrowserWindow, MessageChannelMain, app, dialog, ipcMain, nativeTheme, shell, utilityProcess, type UtilityProcess } from 'electron'
+import { BrowserWindow, Menu, MessageChannelMain, app, dialog, ipcMain, nativeTheme, shell, utilityProcess, type MenuItem, type UtilityProcess } from 'electron'
 import type { MenuCommand } from '../shared/protocol'
 import { buildMenu } from './menu'
 
@@ -72,6 +72,11 @@ function createWindow() {
     // Packaged builds take their icon from electron-builder; this covers development runs on Linux and Windows.
     icon: app.isPackaged ? undefined : join(app.getAppPath(), 'build', 'icon.png'),
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#1f1f1f' : '#ffffff',
+    // One bar like VS Code: the renderer draws the title bar and menus; the OS keeps only the window buttons.
+    titleBarStyle: 'hidden',
+    ...(process.platform === 'darwin'
+      ? { trafficLightPosition: { x: 12, y: 10 } }
+      : { titleBarOverlay: { color: '#181818', symbolColor: '#cccccc', height: 34 } }),
     webPreferences: { preload: join(__dirname, '../preload/index.js'), sandbox: true, contextIsolation: true },
   })
   window.once('ready-to-show', () => window.show())
@@ -152,6 +157,26 @@ ipcMain.on('document:state', (event, state: { dirty: boolean; path: string | nul
 ipcMain.on('window:close', event => {
   dirtyWindows.delete(event.sender.id)
   BrowserWindow.fromWebContents(event.sender)?.close()
+})
+
+// The application menu, serialized for the renderer's title bar (Windows and Linux).
+interface MenuEntry { label: string; accelerator?: string; type: string; checked: boolean; enabled: boolean; path: number[] }
+function serializeMenu() {
+  const items = Menu.getApplicationMenu()?.items ?? []
+  const entry = (item: MenuItem, path: number[]): MenuEntry => ({
+    label: item.label, accelerator: item.accelerator ?? undefined, type: item.type, checked: item.checked, enabled: item.enabled, path,
+  })
+  return items.map((top, i) => ({ label: top.label, items: (top.submenu?.items ?? []).filter(item => item.visible).map(item => entry(item, [i, top.submenu!.items.indexOf(item)])) }))
+}
+ipcMain.handle('menu:get', () => serializeMenu())
+ipcMain.on('menu:invoke', (event, path: number[]) => {
+  const item = Menu.getApplicationMenu()?.items[path[0]]?.submenu?.items[path[1]]
+  const window = BrowserWindow.fromWebContents(event.sender) ?? undefined
+  if (item?.enabled) item.click(undefined, window, event.sender)
+})
+ipcMain.on('window:titleBar', (event, colors: { color: string; symbolColor: string }) => {
+  const window = BrowserWindow.fromWebContents(event.sender)
+  if (window && process.platform !== 'darwin') window.setTitleBarOverlay({ ...colors, height: 34 })
 })
 
 ipcMain.on('app:softwareRendering', (_event, enabled: boolean) => setSoftwareRendering(enabled))
