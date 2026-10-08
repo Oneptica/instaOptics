@@ -1,0 +1,49 @@
+name: Release
+
+# Push a tag such as v0.1.0 to build installers and attach them to a draft GitHub release.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            arch: x64
+          - os: ubuntu-latest
+            arch: x64
+          - os: macos-latest
+            arch: arm64
+          - os: macos-latest
+            arch: x64
+            target: x86_64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.arch }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Check the tag matches package.json
+        shell: bash
+        run: test "v$(node -p "require('./package.json').version")" = "${GITHUB_REF_NAME}"
+      - run: npm ci
+      - run: npm run build
+        env:
+          NATIVE_TARGET: ${{ matrix.target }}
+      - run: npx electron-builder --${{ matrix.arch }} --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false

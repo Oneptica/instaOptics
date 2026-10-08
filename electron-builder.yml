@@ -12,6 +12,12 @@ extraResources:
   - from: native/optics.node
     to: native/optics.node
 asar: true
+artifactName: ${productName}-${version}-${os}-${arch}.${ext}
+publish:
+  provider: github
+  owner: Oneptica
+  repo: instaOptics
+  releaseType: draft
 fileAssociations:
   - ext: iol
     name: instaOptics Lens
@@ -24,6 +30,8 @@ nsis:
 mac:
   target: dmg
   category: public.app-category.developer-tools
+  # Ad-hoc signature until a Developer ID is available; without one Apple silicon reports the app as damaged.
+  identity: '-'
 linux:
   target: [AppImage, deb]
   category: Science

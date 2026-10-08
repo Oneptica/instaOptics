@@ -5,6 +5,9 @@ import { BrowserWindow, MessageChannelMain, app, dialog, ipcMain, nativeTheme, s
 import type { MenuCommand } from '../shared/protocol'
 import { buildMenu } from './menu'
 
+// AppImages cannot ship the setuid sandbox helper, and Ubuntu 24.04+ blocks the namespace sandbox for them.
+if (process.env.APPIMAGE) app.commandLine.appendSwitch('no-sandbox')
+
 // Settings that must be known before the app is ready (they change Chromium switches).
 interface StartupSettings { softwareRendering?: boolean }
 const settingsPath = () => join(app.getPath('userData'), 'startup.json')

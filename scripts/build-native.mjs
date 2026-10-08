@@ -10,9 +10,11 @@ const exe = process.platform === 'win32' ? 'cargo.exe' : 'cargo'
 const fallback = join(homedir(), '.cargo', 'bin', exe)
 const cargo = process.env.CARGO ?? (existsSync(fallback) ? fallback : exe)
 
-execFileSync(cargo, ['build', '-p', 'optics-node', '--profile', profile], { stdio: 'inherit' })
+// NATIVE_TARGET cross-compiles, e.g. x86_64-apple-darwin on an Apple silicon runner.
+const target = process.env.NATIVE_TARGET
+execFileSync(cargo, ['build', '-p', 'optics-node', '--profile', profile, ...(target ? ['--target', target] : [])], { stdio: 'inherit' })
 
 const library = { win32: 'optics_node.dll', darwin: 'liboptics_node.dylib' }[process.platform] ?? 'liboptics_node.so'
 mkdirSync('native', { recursive: true })
-copyFileSync(join('target', profile, library), join('native', 'optics.node'))
+copyFileSync(join('target', ...(target ? [target] : []), profile, library), join('native', 'optics.node'))
 console.log(`native/optics.node (${profile})`)
