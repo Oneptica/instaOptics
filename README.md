@@ -14,7 +14,7 @@ Free and open-source optical simulation software.
 
 [中文](README.zh-CN.md)
 
-![](docs/screenshots/analysis.png)
+![](docs/screenshots/workspace.png)
 
 ## Features
 
@@ -29,11 +29,6 @@ Free and open-source optical simulation software.
 
 The engine is written in Rust and runs on all CPU cores in a separate process; results update when the system changes.
 
-| | |
-| --- | --- |
-| ![](docs/screenshots/imagesim.png) | ![](docs/screenshots/tolerance.png) |
-| ![](docs/screenshots/workspace.png) | ![](docs/screenshots/3d.png) |
-
 ## Build
 
 Requires Node.js 24 and Rust.
@@ -44,17 +39,3 @@ npm run dev      # run
 npm test         # Rust tests
 npm run dist     # installer for the current platform
 ```
-
-On Linux, `npm run dev` runs Electron with `--noSandbox` unless `chrome-sandbox` is setuid root. If WebGL is not available (remote desktop, VM), turn on View → Software 3D Rendering.
-
-## Structure
-
-| Path | |
-| --- | --- |
-| `crates/optics-core` | Rust optics engine |
-| `crates/optics-node` | Node-API bindings |
-| `src/main` | Electron main process |
-| `src/compute` | Process that runs the engine |
-| `src/renderer` | Interface (React) |
-
-Files are saved as `.iol` (JSON). Units: mm, µm, degrees.
