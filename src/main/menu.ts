@@ -14,7 +14,7 @@ export function buildMenu(
     {
       label: '&File',
       submenu: [
-        item('New Lens', 'file:new', 'CmdOrCtrl+N'),
+        item('New System', 'file:new', 'CmdOrCtrl+N'),
         { label: 'New Window', accelerator: 'CmdOrCtrl+Shift+N', click: newWindow },
         { type: 'separator' },
         item('Open…', 'file:open', 'CmdOrCtrl+O'),

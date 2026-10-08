@@ -3,7 +3,7 @@
   "productName": "instaOptics",
   "version": "0.1.0",
   "private": true,
-  "description": "instaOptics optical design software",
+  "description": "instaOptics optical simulation software",
   "main": "out/main/index.js",
   "scripts": {
     "native": "node scripts/build-native.mjs",

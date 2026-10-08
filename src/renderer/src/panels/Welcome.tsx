@@ -55,13 +55,13 @@ function SampleCard({ sample, onOpen }: { sample: Sample; onOpen: () => void }) 
 }
 
 const FEATURES: Array<{ icon: string; title: string; text: string; window: string }> = [
-  { icon: 'table', title: 'Lens data editor', text: 'Spheres, conics and even aspheres, catalog or model glasses, keyboard-driven like a spreadsheet.', window: 'lensData' },
-  { icon: 'graph-line', title: 'Image quality', text: 'Spot diagrams, ray fans, FFT MTF and PSF, wavefront maps — recomputed on every edit.', window: 'mtf' },
-  { icon: 'graph', title: 'Aberrations', text: 'Seidel contributions per surface, field curvature, distortion and relative illumination.', window: 'seidel' },
-  { icon: 'rocket', title: 'Optimization', text: 'Damped least squares on radii, thicknesses, conics and aspheric terms with live progress.', window: 'optimize' },
-  { icon: 'symbol-ruler', title: 'Tolerancing', text: 'Sensitivity ranking and Monte Carlo yield with a back-focus compensator.', window: 'tolerance' },
-  { icon: 'file-media', title: 'Image simulation', text: 'See your lens: blur, distortion, lateral colour and vignetting on any picture.', window: 'imageSim' },
-  { icon: 'symbol-namespace', title: '3D layout', text: 'Orbit the assembled lens with real rays traced through every element.', window: 'layout3d' },
+  { icon: 'graph-line', title: 'MTF, PSF, wavefront', text: 'FFT diffraction, Strehl ratio, encircled energy.', window: 'mtf' },
+  { icon: 'file-media', title: 'Image simulation', text: 'Render a test chart or an image through the system.', window: 'imageSim' },
+  { icon: 'graph', title: 'Aberrations', text: 'Seidel, ray fans, field curvature, distortion, illumination.', window: 'seidel' },
+  { icon: 'symbol-namespace', title: '3D layout', text: 'Real rays through every surface.', window: 'layout3d' },
+  { icon: 'symbol-ruler', title: 'Tolerancing', text: 'Sensitivity and Monte Carlo.', window: 'tolerance' },
+  { icon: 'table', title: 'System editor', text: 'Surfaces, glasses, aperture, fields, wavelengths.', window: 'lensData' },
+  { icon: 'rocket', title: 'Optimization', text: 'Damped least squares on spot or wavefront error.', window: 'optimize' },
 ]
 
 export function Welcome() {
@@ -83,10 +83,10 @@ export function Welcome() {
             <img src={logo} alt="" className="welcome-logo" />
             <div>
               <h1>instaOptics</h1>
-              <p className="welcome-tagline">Optical design, from the first ray to a finished lens.</p>
+              <p className="welcome-tagline">Optical simulation</p>
               <p className="welcome-meta mono">
-                Engine {engine.version ?? '…'} · Rust, multi-threaded
-                {paraxial && <> · current lens EFL {formatFixed(paraxial.efl, 2)} mm, F/{formatFixed(paraxial.fNumber, 2)}</>}
+                Engine {engine.version ?? '…'}
+                {paraxial && <> · current system EFL {formatFixed(paraxial.efl, 2)} mm, F/{formatFixed(paraxial.fNumber, 2)}</>}
               </p>
             </div>
           </header>
@@ -95,20 +95,20 @@ export function Welcome() {
             <section>
               <h2>Start</h2>
               <ul className="welcome-links">
-                <li><button onClick={() => start('file:new')}><i className="codicon codicon-new-file" /> New lens<kbd>Ctrl+N</kbd></button></li>
-                <li><button onClick={() => start('file:open')}><i className="codicon codicon-folder-opened" /> Open lens…<kbd>Ctrl+O</kbd></button></li>
+                <li><button onClick={() => start('file:new')}><i className="codicon codicon-new-file" /> New system<kbd>Ctrl+N</kbd></button></li>
+                <li><button onClick={() => start('file:open')}><i className="codicon codicon-folder-opened" /> Open system…<kbd>Ctrl+O</kbd></button></li>
                 <li><button onClick={() => start('file:importZmx')}><i className="codicon codicon-cloud-download" /> Import Zemax .zmx…</button></li>
-                <li><button onClick={() => actions.openWindow('lensData')}><i className="codicon codicon-table" /> Edit the current lens<kbd>Ctrl+L</kbd></button></li>
+                <li><button onClick={() => actions.openWindow('lensData')}><i className="codicon codicon-table" /> Edit the current system<kbd>Ctrl+L</kbd></button></li>
               </ul>
 
-              <h2>Sample lenses</h2>
+              <h2>Sample systems</h2>
               <div className="sample-grid">
                 {samples.map(sample => <SampleCard key={sample.id} sample={sample} onOpen={() => { actions.openSample(sample); actions.openWindow('layout') }} />)}
               </div>
             </section>
 
             <section>
-              <h2>What you can do</h2>
+              <h2>Tools</h2>
               <div className="feature-list">
                 {FEATURES.map(feature => (
                   <button key={feature.title} className="feature" onClick={() => actions.openWindow(feature.window)}>
@@ -125,7 +125,6 @@ export function Welcome() {
 
           <footer className="welcome-footer">
             <label className="check"><input type="checkbox" checked={onStartup} onChange={e => toggleStartup(e.target.checked)} /> Show this page on startup</label>
-            <span className="muted">Every window can be dragged, split and docked. Window → Reset Window Layout restores the default arrangement.</span>
           </footer>
         </div>
       </div>
