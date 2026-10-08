@@ -1,0 +1,8 @@
+node_modules/
+out/
+dist/
+target/
+native/
+*.log
+.DS_Store
+*.tsbuildinfo

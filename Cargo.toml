@@ -1,0 +1,23 @@
+[workspace]
+members = ["crates/optics-core", "crates/optics-node"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "UNLICENSED"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+
+# Fast-to-build optimized native module for `npm run dev`.
+[profile.native-dev]
+inherits = "release"
+lto = false
+codegen-units = 16
+incremental = true

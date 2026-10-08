@@ -1,0 +1,100 @@
+/* Design tokens. Dark is the default; [data-theme="light"] on <html> switches to light. */
+:root {
+  color-scheme: dark;
+  --font-ui: system-ui, -apple-system, "Segoe UI", "Ubuntu", "Noto Sans", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+  --font-mono: "Cascadia Mono", "JetBrains Mono", "SF Mono", Consolas, "DejaVu Sans Mono", "Noto Sans Mono CJK SC", monospace;
+  --font-size: 13px;
+  --font-size-small: 12px;
+  --font-size-mono: 12px;
+
+  --bg-editor: #1f1f1f;
+  --bg-side: #181818;
+  --bg-activity: #181818;
+  --bg-header: #181818;
+  --bg-input: #313131;
+  --bg-hover: #2a2d2e;
+  --bg-active: #37373d;
+  --bg-selection: #04395e;
+  --bg-cell-selected: #264f78;
+  --bg-row-alt: #232323;
+  --border: #2b2b2b;
+  --border-strong: #3c3c3c;
+  --focus: #0078d4;
+  --text: #cccccc;
+  --text-strong: #e7e7e7;
+  --text-muted: #9d9d9d;
+  --text-faint: #6e6e6e;
+  --accent: #0078d4;
+  --accent-text: #ffffff;
+  --link: #4daafc;
+  --error: #f85149;
+  --error-bg: #5a1d1d;
+  --warning: #cca700;
+  --status-bg: #181818;
+  --status-text: #cccccc;
+  --status-error-bg: #c72e0f;
+  --scrollbar: rgba(121, 121, 121, 0.4);
+  --scrollbar-hover: rgba(100, 100, 100, 0.7);
+
+  --plot-bg: #1f1f1f;
+  --plot-axis: #5a5a5a;
+  --plot-grid: #2c2c2c;
+  --plot-text: #9d9d9d;
+  --glass-fill: rgba(86, 156, 214, 0.16);
+  --glass-stroke: #8fb6e0;
+  --surface-stroke: #8a8a8a;
+  --stop: #e7e7e7;
+  --image-plane: #d7ba7d;
+  --field-1: #4fa3ff;
+  --field-2: #3fb950;
+  --field-3: #f85149;
+  --field-4: #d29922;
+  --field-5: #bc8cff;
+  --field-6: #39c5cf;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg-editor: #ffffff;
+  --bg-side: #f8f8f8;
+  --bg-activity: #f8f8f8;
+  --bg-header: #f8f8f8;
+  --bg-input: #ffffff;
+  --bg-hover: #f2f2f2;
+  --bg-active: #e4e6f1;
+  --bg-selection: #add6ff;
+  --bg-cell-selected: #cce4ff;
+  --bg-row-alt: #fafafa;
+  --border: #e5e5e5;
+  --border-strong: #cecece;
+  --focus: #005fb8;
+  --text: #3b3b3b;
+  --text-strong: #1f1f1f;
+  --text-muted: #6f6f6f;
+  --text-faint: #a0a0a0;
+  --accent: #005fb8;
+  --link: #005fb8;
+  --error: #c72e0f;
+  --error-bg: #fdeaea;
+  --warning: #9a6700;
+  --status-bg: #f8f8f8;
+  --status-text: #3b3b3b;
+  --scrollbar: rgba(100, 100, 100, 0.35);
+  --scrollbar-hover: rgba(100, 100, 100, 0.6);
+
+  --plot-bg: #ffffff;
+  --plot-axis: #a0a0a0;
+  --plot-grid: #eeeeee;
+  --plot-text: #6f6f6f;
+  --glass-fill: rgba(0, 95, 184, 0.09);
+  --glass-stroke: #4a7fb5;
+  --surface-stroke: #8a8a8a;
+  --stop: #1f1f1f;
+  --image-plane: #9a6700;
+  --field-1: #0b62d6;
+  --field-2: #1a7f37;
+  --field-3: #cf222e;
+  --field-4: #9a6700;
+  --field-5: #8250df;
+  --field-6: #1b7c83;
+}

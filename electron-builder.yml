@@ -1,0 +1,30 @@
+appId: com.oneptica.instaoptics
+productName: instaOptics
+copyright: Copyright © 2026 Oneptica
+directories:
+  output: dist
+  buildResources: build
+files:
+  - out/**
+  - package.json
+# The Rust engine is built per platform and architecture (npm run native:release) and loaded by the compute process.
+extraResources:
+  - from: native/optics.node
+    to: native/optics.node
+asar: true
+fileAssociations:
+  - ext: iol
+    name: instaOptics Lens
+    role: Editor
+win:
+  target: nsis
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+mac:
+  target: dmg
+  category: public.app-category.developer-tools
+linux:
+  target: [AppImage, deb]
+  category: Science
+  maintainer: Oneptica

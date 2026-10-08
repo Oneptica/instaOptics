@@ -1,0 +1,22 @@
+[package]
+name = "optics-node"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+# The Node-API symbols only resolve inside Node/Electron, so there is no standalone test binary.
+test = false
+doctest = false
+
+[dependencies]
+optics-core = { path = "../optics-core" }
+serde.workspace = true
+serde_json.workspace = true
+napi = "3"
+napi-derive = "3"
+
+[build-dependencies]
+napi-build = "2"
