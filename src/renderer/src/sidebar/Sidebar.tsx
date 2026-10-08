@@ -111,7 +111,7 @@ function Samples({ samples, onOpen }: { samples: Sample[]; onOpen: (sample: Samp
 }
 
 function Windows({ onOpen }: { onOpen: (id: string) => void }) {
-  const groups = [...new Set(WINDOWS.map(window => window.group))]
+  const groups = [...new Set(WINDOWS.map(window => window.group))].filter(group => group !== 'Help')
   return (
     <>
       {groups.map(group => (

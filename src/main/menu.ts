@@ -64,8 +64,8 @@ export function buildMenu(
     {
       label: '&Window',
       submenu: [
-        ...WINDOWS.flatMap((window, i) => [
-          ...(i > 0 && WINDOWS[i - 1].group !== window.group ? [{ type: 'separator' } as MenuItemConstructorOptions] : []),
+        ...WINDOWS.filter(window => window.group !== 'Help').flatMap((window, i, list) => [
+          ...(i > 0 && list[i - 1].group !== window.group ? [{ type: 'separator' } as MenuItemConstructorOptions] : []),
           item(window.title, `window:${window.id}`, window.accelerator),
         ]),
         ...(mac ? [{ type: 'separator' } as MenuItemConstructorOptions, { role: 'minimize' } as MenuItemConstructorOptions, { role: 'front' } as MenuItemConstructorOptions] : []),
@@ -73,7 +73,11 @@ export function buildMenu(
     },
     {
       role: 'help',
-      submenu: [{ label: `instaOptics ${app.getVersion()}`, enabled: false }],
+      submenu: [
+        item('Welcome', 'window:welcome'),
+        { type: 'separator' },
+        { label: `instaOptics ${app.getVersion()}`, enabled: false },
+      ],
     },
   ]
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))

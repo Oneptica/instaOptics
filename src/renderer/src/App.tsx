@@ -7,6 +7,7 @@ import {
 } from './document'
 import { formatFixed } from './format'
 import { PANELS, panelTitle } from './panels/registry'
+import { showWelcomeOnStartup } from './panels/Welcome'
 import { decodeZmx, exportZmx, importZmx } from './zemax'
 import { SIDEBAR_VIEWS, Sidebar, type SidebarView } from './sidebar/Sidebar'
 
@@ -30,22 +31,27 @@ function defaultLayout(dock: DockviewApi) {
     dock.addPanel({ id, component: id, title: panelTitle(id), position })
   add('lensData')
   add('systemData', { referencePanel: 'lensData', direction: 'within' })
+  add('welcome', { referencePanel: 'lensData', direction: 'within' })
   add('layout', { referencePanel: 'lensData', direction: 'below' })
   add('spot', { referencePanel: 'layout', direction: 'right' })
   add('mtf', { referencePanel: 'spot', direction: 'within' })
   add('rayFan', { referencePanel: 'spot', direction: 'within' })
-  dock.getPanel('lensData')?.api.setActive()
   dock.getPanel('spot')?.api.setActive()
+  dock.getPanel('welcome')?.api.setActive()
   dock.getPanel('lensData')?.group.api.setSize({ height: Math.round(dock.height * 0.36) })
   dock.getPanel('spot')?.group.api.setSize({ width: Math.round(dock.width * 0.45) })
 }
 
 function openPanel(dock: DockviewApi | null, id: string) {
   if (!dock || !components[id]) return
+  if (dock.hasMaximizedGroup()) dock.exitMaximizedGroup()
   const existing = dock.getPanel(id)
   if (existing) { existing.api.setActive(); return }
-  // New analysis windows join the group of the most recent analysis window, or open beside the editor.
-  const anchor = dock.panels.find(panel => panel.id !== 'lensData' && panel.id !== 'systemData' && panel.id !== 'layout') ?? dock.activePanel
+  // Editor-side windows share the Lens Data group; analysis windows join the group of an open analysis window.
+  const editorSide = new Set(['lensData', 'systemData', 'welcome'])
+  const anchor = (editorSide.has(id)
+    ? dock.panels.find(panel => editorSide.has(panel.id))
+    : dock.panels.find(panel => !editorSide.has(panel.id) && panel.id !== 'layout')) ?? dock.activePanel
   dock.addPanel({ id, component: id, title: panelTitle(id), position: anchor ? { referencePanel: anchor.id, direction: 'within' } : undefined })
 }
 
@@ -171,6 +177,8 @@ export function App() {
 
   const onReady = useCallback((event: DockviewReadyEvent) => {
     dockRef.current = event.api
+    // UI automation (screenshots, end-to-end tests) loads the page with ?automation to reach the dock directly.
+    if (new URLSearchParams(location.search).has('automation')) Object.assign(window, { __dock: event.api })
     const saved = storage.get(KEYS.layout)
     try {
       if (!saved) throw new Error('no saved layout')
@@ -178,6 +186,12 @@ export function App() {
       if (event.api.panels.length === 0) throw new Error('empty layout')
     } catch {
       defaultLayout(event.api)
+    }
+    if (showWelcomeOnStartup()) {
+      // Like an editor's start page: the welcome tab fills the window until the user opens something.
+      openPanel(event.api, 'welcome')
+      const welcome = event.api.getPanel('welcome')
+      if (welcome) event.api.maximizeGroup(welcome)
     }
     event.api.onDidLayoutChange(() => storage.set(KEYS.layout, JSON.stringify(event.api.toJSON())))
   }, [])
@@ -200,9 +214,14 @@ export function App() {
     target.addEventListener('pointerup', up)
   }
 
+  const actions = useMemo(() => ({
+    command: (command: MenuCommand) => runCommand(command),
+    openWindow: (id: string) => openPanel(dockRef.current, id),
+    openSample,
+  }), [runCommand, openSample])
   const workbench: Workbench = useMemo(
-    () => ({ doc, dispatch, edit, engine, glasses, raysPerField, setRaysPerField }),
-    [doc, edit, engine, glasses, raysPerField],
+    () => ({ doc, dispatch, edit, engine, glasses, raysPerField, setRaysPerField, samples, actions }),
+    [doc, edit, engine, glasses, raysPerField, samples, actions],
   )
   const paraxial = engine.overview?.paraxial
   const primary = doc.system.wavelengths[doc.system.primaryWavelength]

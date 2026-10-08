@@ -2,6 +2,7 @@
 export interface WindowInfo { id: string; title: string; icon: string; group: string; accelerator?: string }
 
 export const WINDOWS: WindowInfo[] = [
+  { id: 'welcome', title: 'Welcome', icon: 'home', group: 'Help' },
   { id: 'lensData', title: 'Lens Data', icon: 'table', group: 'System', accelerator: 'CmdOrCtrl+L' },
   { id: 'systemData', title: 'System Data', icon: 'output', group: 'System' },
   { id: 'layout', title: '2D Layout', icon: 'layout-panel-left', group: 'System', accelerator: 'CmdOrCtrl+Shift+L' },

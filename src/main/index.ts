@@ -66,6 +66,8 @@ function createWindow() {
     minHeight: 560,
     show: false,
     title: 'instaOptics',
+    // Packaged builds take their icon from electron-builder; this covers development runs on Linux and Windows.
+    icon: app.isPackaged ? undefined : join(app.getAppPath(), 'build', 'icon.png'),
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#1f1f1f' : '#ffffff',
     webPreferences: { preload: join(__dirname, '../preload/index.js'), sandbox: true, contextIsolation: true },
   })

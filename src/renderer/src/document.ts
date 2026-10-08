@@ -1,6 +1,7 @@
 // The open lens document: current system, undo/redo history, file path and saved state.
 import { createContext, useContext } from 'react'
-import type { GlassInfo, LensSystem, Overview } from '../../shared/lens'
+import type { GlassInfo, LensSystem, Overview, Sample } from '../../shared/lens'
+import type { MenuCommand } from '../../shared/protocol'
 
 const HISTORY_LIMIT = 200
 
@@ -72,6 +73,12 @@ export interface Workbench {
   glasses: GlassInfo[]
   raysPerField: number
   setRaysPerField: (rays: number) => void
+  samples: Sample[]
+  actions: {
+    command: (command: MenuCommand) => void
+    openWindow: (id: string) => void
+    openSample: (sample: Sample) => void
+  }
 }
 
 export const WorkbenchContext = createContext<Workbench | null>(null)

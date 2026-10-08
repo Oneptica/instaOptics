@@ -6,12 +6,14 @@ import { ImageSimPanel } from './ImageSimPanel'
 import { LensDataEditor } from './LensDataEditor'
 import { OptimizePanel } from './OptimizePanel'
 import { TolerancePanel } from './TolerancePanel'
+import { Welcome } from './Welcome'
 import { SystemData } from './SystemData'
 
 // three.js loads only when a 3D window opens.
 const Layout3dPanel = lazy(() => import('./Layout3d'))
 
 const RENDER: Record<string, () => ReactNode> = {
+  welcome: () => <Welcome />,
   lensData: () => <LensDataEditor />,
   systemData: () => <SystemData />,
   layout: () => <LayoutView />,
