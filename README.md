@@ -4,10 +4,13 @@
 
 Free and open-source optical simulation software.
 
-[![CI](https://github.com/Oneptica/instaOptics/actions/workflows/ci.yml/badge.svg)](https://github.com/Oneptica/instaOptics/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/Oneptica/instaOptics)](https://github.com/Oneptica/instaOptics/releases/latest)
-[![Downloads](https://img.shields.io/github/downloads/Oneptica/instaOptics/total)](https://github.com/Oneptica/instaOptics/releases)
-![Platforms](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue)
+[![CI](https://img.shields.io/github/actions/workflow/status/Oneptica/instaOptics/ci.yml?branch=main&style=flat-square&logo=githubactions&logoColor=white&label=CI)](https://github.com/Oneptica/instaOptics/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Oneptica/instaOptics?style=flat-square&logo=github&label=release)](https://github.com/Oneptica/instaOptics/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
+![Windows](https://img.shields.io/badge/Windows-0078D4?style=flat-square&logo=windows&logoColor=white)
+![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white)
+![Linux](https://img.shields.io/badge/Linux-FCC624?style=flat-square&logo=linux&logoColor=black)
+![Rust](https://img.shields.io/badge/engine-Rust-B7410E?style=flat-square&logo=rust&logoColor=white)
 
 [中文](README.zh-CN.md)
 

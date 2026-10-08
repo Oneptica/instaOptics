@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "instaOptics optical simulation software",
+  "license": "MIT",
   "main": "out/main/index.js",
   "scripts": {
     "native": "node scripts/build-native.mjs",
