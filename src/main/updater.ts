@@ -32,7 +32,8 @@ export function checkForUpdates(manual = false) {
 }
 
 export function setupUpdater() {
-  autoUpdater.autoDownload = false
+  // Where the app can replace itself, the update downloads in the background and only needs a restart.
+  autoUpdater.autoDownload = canInstall()
   autoUpdater.autoInstallOnAppQuit = true
   autoUpdater.on('update-available', info => publish({ status: 'available', version: info.version, canInstall: canInstall() }))
   autoUpdater.on('update-not-available', () => publish({ status: 'none' }))
@@ -49,7 +50,8 @@ export function setupUpdater() {
     if (!state.canInstall) { void shell.openExternal(RELEASES); return }
     void autoUpdater.downloadUpdate()
   })
-  ipcMain.on('update:install', () => autoUpdater.quitAndInstall())
+  // Silent: no installer wizard, and the app starts again by itself.
+  ipcMain.on('update:install', () => autoUpdater.quitAndInstall(true, true))
 
   // Check shortly after start, then every 6 hours while the app stays open.
   setTimeout(() => checkForUpdates(), 5000)

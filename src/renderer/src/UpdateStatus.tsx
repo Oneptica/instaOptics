@@ -22,7 +22,9 @@ export function UpdateStatus() {
     case 'checking': return <span className="status-item"><i className="codicon codicon-sync codicon-modifier-spin" /> Checking for updates…</span>
     case 'none': return <span className="status-item"><i className="codicon codicon-check" /> instaOptics is up to date</span>
     case 'error': return <span className="status-item" title={state.message}><i className="codicon codicon-warning" /> Update check failed</span>
-    case 'available': return (
+    case 'available':
+      if (state.canInstall) return <span className="status-item"><i className="codicon codicon-cloud-download" /> Downloading {state.version}…</span>
+      return (
       <button className="status-item status-button highlight" onClick={() => api.update.download()} title={state.canInstall ? 'Download and install' : 'Open the download page'}>
         <i className="codicon codicon-cloud-download" /> Update {state.version} available
       </button>
