@@ -22,6 +22,7 @@ jobs:
           cache: npm
       - run: cargo test --workspace
       - run: npm ci
+      - run: npm run test:ui
       - run: npm run build
       - name: Package (unsigned)
         run: npx electron-builder --dir --publish never
