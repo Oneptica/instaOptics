@@ -1,6 +1,7 @@
 // The open lens document: current system, undo/redo history, file path and saved state.
 import { createContext, useContext } from 'react'
 import type { GlassInfo, LensSystem, Overview, Sample } from '../../shared/lens'
+import { attachGlasses } from './glassLibrary'
 import type { MenuCommand } from '../../shared/protocol'
 
 const HISTORY_LIMIT = 200
@@ -23,6 +24,8 @@ export type DocumentAction =
   /** Records `base` as the undo point for the current (previewed) system. */
   | { type: 'commit'; base: LensSystem }
   | { type: 'saved'; path: string }
+  /** Re-attaches catalog glass definitions after the catalogs changed; not an edit. */
+  | { type: 'glasses' }
 
 export function initialDocument(system: LensSystem): DocumentState {
   return { system, path: null, saved: system, past: [], future: [] }
@@ -31,7 +34,7 @@ export function initialDocument(system: LensSystem): DocumentState {
 export function documentReducer(state: DocumentState, action: DocumentAction): DocumentState {
   switch (action.type) {
     case 'edit': {
-      const system = action.update(state.system)
+      const system = attachGlasses(action.update(state.system))
       if (system === state.system) return state
       return { ...state, system, past: [...state.past, state.system].slice(-HISTORY_LIMIT), future: [] }
     }
@@ -49,8 +52,14 @@ export function documentReducer(state: DocumentState, action: DocumentAction): D
       return { ...state, system: action.system }
     case 'commit':
       return state.system === action.base ? state : { ...state, past: [...state.past, action.base].slice(-HISTORY_LIMIT), future: [] }
-    case 'load':
-      return { system: action.system, path: action.path, saved: action.system, past: [], future: [] }
+    case 'load': {
+      const system = attachGlasses(action.system)
+      return { system, path: action.path, saved: system, past: [], future: [] }
+    }
+    case 'glasses': {
+      const system = attachGlasses(state.system)
+      return system === state.system ? state : { ...state, system, saved: state.saved === state.system ? system : state.saved }
+    }
     case 'saved':
       return { ...state, path: action.path, saved: state.system }
   }

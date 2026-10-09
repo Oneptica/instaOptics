@@ -35,6 +35,12 @@ export interface InstaOpticsApi {
   onMenu(callback: (command: MenuCommand) => void): () => void
   setDocumentState(state: { dirty: boolean; path: string | null }): void
   closeWindow(): void
+  catalogs: {
+    list(): Promise<Array<{ name: string; bytes: Uint8Array }>>
+    /** Asks for .agf files, adds them to the app's catalogs and returns all catalogs. */
+    add(): Promise<Array<{ name: string; bytes: Uint8Array }>>
+    remove(name: string): Promise<Array<{ name: string; bytes: Uint8Array }>>
+  }
   menu: {
     get(): Promise<Array<{ label: string; items: Array<{ label: string; accelerator?: string; type: string; checked: boolean; enabled: boolean; path: number[] }> }>>
     invoke(path: number[]): void

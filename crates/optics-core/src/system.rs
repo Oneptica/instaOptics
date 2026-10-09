@@ -198,6 +198,9 @@ pub struct LensSystem {
     pub target_efl: Option<f64>,
     #[serde(default)]
     pub optimization: OptimizationSettings,
+    /// Glasses defined in the system itself (from loaded catalogs); they take precedence over the built-in catalog.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub glasses: Vec<glass::GlassDef>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -238,6 +241,19 @@ impl LensSystem {
         self.fields.iter().fold(0.0_f64, |max, field| max.max(field.abs()))
     }
 
+    /// Refractive index of a material at a wavelength: glasses defined in the system first, then the built-in catalog.
+    pub fn index_of(&self, material: &str, wavelength: f64) -> Option<f64> {
+        let name = material.trim();
+        if let Some(glass) = self.glasses.iter().find(|g| g.name.trim().eq_ignore_ascii_case(name)) {
+            return glass.index(wavelength);
+        }
+        glass::refractive_index(material, wavelength)
+    }
+
+    pub fn is_known_material(&self, material: &str) -> bool {
+        glass::is_known_material(material) || self.glasses.iter().any(|g| g.name.trim().eq_ignore_ascii_case(material.trim()))
+    }
+
     /// Indices of the media: [object space, after surface 1, …, after surface k]. After an odd number of mirrors the
     /// indices are negative (light travels towards −z), which keeps the paraxial equations unchanged.
     pub fn medium_indices(&self, wavelength: f64) -> Result<Vec<f64>, LensError> {
@@ -255,12 +271,12 @@ impl LensSystem {
                 n.push(-previous);
                 continue;
             }
-            let index = sign * glass::refractive_index(&surface.material, wavelength)
+            let index = sign * self.index_of(&surface.material, wavelength)
                 .ok_or_else(|| LensError(format!("Unknown material \"{}\" on surface {}", surface.material, i + 1)))?;
             n.push(match surface.glass_offset {
                 // Shift nd and scale the dispersion so vd changes by the requested fraction.
                 Some(offset) => {
-                    let nd = glass::refractive_index(&surface.material, glass::LINE_D).unwrap_or(index);
+                    let nd = self.index_of(&surface.material, glass::LINE_D).unwrap_or(index);
                     sign * (nd + offset.index + (index.abs() - nd) / (1.0 + offset.abbe))
                 }
                 None => index,
@@ -319,6 +335,7 @@ fn visible(name: &str, stop_index: usize, entrance_pupil_diameter: f64, fields: 
         field_type: FieldType::Angle,
         target_efl: None,
         optimization: OptimizationSettings::default(),
+        glasses: Vec::new(),
     }
 }
 
@@ -367,6 +384,7 @@ pub fn aspheric_singlet() -> LensSystem {
         field_type: FieldType::Angle,
         target_efl: None,
         optimization: OptimizationSettings::default(),
+        glasses: Vec::new(),
     }
 }
 

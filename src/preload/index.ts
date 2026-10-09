@@ -69,6 +69,11 @@ const api: InstaOpticsApi = {
   },
   setDocumentState: state => ipcRenderer.send('document:state', state),
   closeWindow: () => ipcRenderer.send('window:close'),
+  catalogs: {
+    list: () => ipcRenderer.invoke('catalogs:list'),
+    add: () => ipcRenderer.invoke('catalogs:add'),
+    remove: name => ipcRenderer.invoke('catalogs:remove', name),
+  },
   menu: {
     get: () => ipcRenderer.invoke('menu:get'),
     invoke: path => ipcRenderer.send('menu:invoke', path),

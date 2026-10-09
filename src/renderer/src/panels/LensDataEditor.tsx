@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { setSelectedSurface } from '../selection'
 import type { LensSystem } from '../../../shared/lens'
 import { useWorkbench } from '../document'
 import { formatFixed } from '../format'
@@ -53,6 +54,7 @@ export function LensDataEditor() {
   const surfaceIndex = row >= 1 && row <= n ? row - 1 : null
 
   useEffect(() => { if (editing) inputRef.current?.focus() }, [editing?.row, editing?.col])
+  useEffect(() => { setSelectedSurface(surfaceIndex) }, [surfaceIndex])
 
   function cell(r: number, c: number): Cell {
     const key = COLUMNS[c].key

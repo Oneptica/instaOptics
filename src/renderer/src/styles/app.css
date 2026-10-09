@@ -472,3 +472,23 @@ button, input, select { font: inherit; color: inherit; }
 .beam-table { flex: 1; overflow: auto; display: flex; flex-direction: column; }
 .beam-table .data-table { margin: 0; }
 .coupling-plot { flex: 0 0 38%; min-height: 150px; border-bottom: 1px solid var(--border); }
+
+/* Glass catalogs */
+.glass-body { flex: 1; min-height: 0; display: flex; }
+.glass-side { flex: 0 0 300px; display: flex; flex-direction: column; padding: 4px 12px 12px; border-right: 1px solid var(--border); min-height: 0; }
+.glass-side h3 { margin: 10px 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); font-weight: 600; border-bottom: 1px solid var(--border); padding-bottom: 3px; }
+.catalog-row { display: flex; align-items: center; gap: 8px; height: 24px; }
+.catalog-row .muted { margin-left: auto; font-size: 11px; }
+.catalog-row .icon-button { margin-left: 4px; }
+.catalog-row .dot, .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.abbe { flex: 1; min-height: 160px; margin-top: 8px; }
+.abbe svg { display: block; }
+.abbe .frame { fill: none; stroke: var(--plot-axis); }
+.abbe .tick { stroke: var(--plot-grid); }
+.abbe text { fill: var(--plot-text); font: 10px var(--font-ui); }
+.abbe circle { cursor: pointer; }
+.glass-table { flex: 1; min-width: 0; overflow: auto; display: flex; flex-direction: column; }
+.glass-table tr { cursor: pointer; }
+.glass-table tr:hover td { background: var(--bg-hover); }
+.glass-table tr.picked td { background: var(--bg-selection); }
+.panel-toolbar .search { width: 180px; text-align: left; }

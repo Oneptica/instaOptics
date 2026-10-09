@@ -1,5 +1,7 @@
 //! Refractive index models. Wavelengths are in micrometres.
 
+use serde::{Deserialize, Serialize};
+
 pub const LINE_D: f64 = 0.5875618;
 pub const LINE_F: f64 = 0.4861327;
 pub const LINE_C: f64 = 0.6562725;
@@ -102,6 +104,63 @@ pub fn refractive_index(material: &str, wavelength: f64) -> Option<f64> {
     parse_model_glass(material).map(|(nd, vd)| model_index(nd, vd, wavelength))
 }
 
+/// A glass defined by one of the OpticStudio catalog (AGF) dispersion formulas.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GlassDef {
+    pub name: String,
+    /// AGF formula number, 1–13.
+    pub formula: u8,
+    pub coefficients: Vec<f64>,
+    #[serde(default)]
+    pub nd: f64,
+    #[serde(default)]
+    pub vd: f64,
+    /// Wavelength range of validity, µm.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub range: Option<[f64; 2]>,
+    /// Catalog the glass comes from.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub catalog: String,
+}
+
+pub const FORMULA_NAMES: [&str; 13] = [
+    "Schott", "Sellmeier 1", "Herzberger", "Sellmeier 2", "Conrady", "Sellmeier 3", "Handbook of Optics 1",
+    "Handbook of Optics 2", "Sellmeier 4", "Extended", "Sellmeier 5", "Extended 2", "Extended 3",
+];
+
+impl GlassDef {
+    /// Refractive index at a wavelength in µm, or None when the formula number or coefficients are unusable.
+    pub fn index(&self, wavelength: f64) -> Option<f64> {
+        let c = |i: usize| self.coefficients.get(i).copied().unwrap_or(0.0);
+        let l = wavelength;
+        let l2 = l * l;
+        // Sums of K·λ²/(λ²−L) over (K, L) coefficient pairs.
+        let pairs = |count: usize| (0..count).map(|k| c(2 * k) * l2 / (l2 - c(2 * k + 1))).sum::<f64>();
+        let power = |p: i32| l.powi(p);
+        let n2 = match self.formula {
+            1 => c(0) + c(1) * l2 + c(2) * power(-2) + c(3) * power(-4) + c(4) * power(-6) + c(5) * power(-8),
+            2 => 1.0 + pairs(3),
+            3 => {
+                let big_l = 1.0 / (l2 - 0.028);
+                return Some(c(0) + c(1) * big_l + c(2) * big_l * big_l + c(3) * l2 + c(4) * power(4) + c(5) * power(6));
+            }
+            4 => 1.0 + c(0) + c(1) * l2 / (l2 - c(2) * c(2)) + c(3) * l2 / (l2 - c(4) * c(4)),
+            5 => return Some(c(0) + c(1) / l + c(2) / l.powf(3.5)),
+            6 => 1.0 + pairs(4),
+            7 => c(0) + c(1) / (l2 - c(2)) - c(3) * l2,
+            8 => c(0) + c(1) * l2 / (l2 - c(2)) - c(3) * l2,
+            9 => c(0) + c(1) * l2 / (l2 - c(2)) + c(3) * l2 / (l2 - c(4)),
+            10 => c(0) + c(1) * l2 + c(2) * power(-2) + c(3) * power(-4) + c(4) * power(-6) + c(5) * power(-8) + c(6) * power(6) + c(7) * power(8),
+            11 => 1.0 + pairs(5),
+            12 => c(0) + c(1) * l2 + c(2) * power(-2) + c(3) * power(-4) + c(4) * power(-6) + c(5) * power(-8) + c(6) * power(4) + c(7) * power(6),
+            13 => c(0) + c(1) * l2 + c(2) * power(4) + c(3) * power(-2) + c(4) * power(-4) + c(5) * power(-6) + c(6) * power(-8) + c(7) * power(-10) + c(8) * power(-12),
+            _ => return None,
+        };
+        (n2 > 0.0 && n2.is_finite()).then(|| n2.sqrt())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -115,6 +174,50 @@ mod tests {
             assert!((nd - glass.nd).abs() <= 1e-4, "{} nd {nd}", glass.name);
             assert!((vd - glass.vd).abs() <= 0.05, "{} vd {vd}", glass.name);
         }
+    }
+
+    fn bk7_as(formula: u8, coefficients: Vec<f64>) -> GlassDef {
+        GlassDef { name: "TEST".into(), formula, coefficients, ..Default::default() }
+    }
+
+    #[test]
+    fn agf_sellmeier_formulas_agree_with_the_built_in_catalog() {
+        // N-BK7 in AGF order: K1 L1 K2 L2 K3 L3.
+        let bk7 = vec![1.03961212, 0.00600069867, 0.231792344, 0.0200179144, 1.01046945, 103.560653];
+        let builtin = find("N-BK7").unwrap();
+        for (formula, mut coefficients) in [(2, bk7.clone()), (6, bk7.clone()), (11, bk7.clone())] {
+            coefficients.resize(10, 0.0); // unused extra terms are zero
+            let glass = bk7_as(formula, coefficients);
+            for wavelength in [0.4, 0.5, 0.5875618, 0.7, 1.0] {
+                let (a, b) = (glass.index(wavelength).unwrap(), sellmeier(builtin, wavelength));
+                assert!((a - b).abs() < 1e-12, "formula {formula} at {wavelength}: {a} vs {b}");
+            }
+        }
+        // Handbook of Optics 2 is a one-term Sellmeier with a linear-in-λ² remainder.
+        let one_term = bk7_as(8, vec![1.0, 1.03961212, 0.00600069867, 0.0]);
+        let n2: f64 = 1.0 + 1.03961212 * 0.25 / (0.25 - 0.00600069867);
+        assert!((one_term.index(0.5).unwrap() - n2.sqrt()).abs() < 1e-12);
+    }
+
+    #[test]
+    fn agf_power_series_formulas_use_the_documented_terms() {
+        // n² = 2.25 + λ-dependent terms, evaluated by hand at λ = 0.5.
+        let l: f64 = 0.5;
+        let check = |formula: u8, coefficients: Vec<f64>, n2: f64| {
+            let got = bk7_as(formula, coefficients).index(l).unwrap();
+            assert!((got - n2.sqrt()).abs() < 1e-12, "formula {formula}: {got} vs {}", n2.sqrt());
+        };
+        check(1, vec![2.25, 0.01, 0.02, 0.03, 0.04, 0.05], 2.25 + 0.01 * l.powi(2) + 0.02 * l.powi(-2) + 0.03 * l.powi(-4) + 0.04 * l.powi(-6) + 0.05 * l.powi(-8));
+        check(10, vec![2.25, 0.01, 0.0, 0.0, 0.0, 0.0, 0.02, 0.03], 2.25 + 0.01 * l.powi(2) + 0.02 * l.powi(6) + 0.03 * l.powi(8));
+        check(12, vec![2.25, 0.01, 0.0, 0.0, 0.0, 0.0, 0.02, 0.03], 2.25 + 0.01 * l.powi(2) + 0.02 * l.powi(4) + 0.03 * l.powi(6));
+        check(13, vec![2.25, 0.01, 0.02, 0.03, 0.0, 0.0, 0.0, 0.0, 0.04], 2.25 + 0.01 * l.powi(2) + 0.02 * l.powi(4) + 0.03 * l.powi(-2) + 0.04 * l.powi(-12));
+        check(7, vec![2.0, 0.1, 0.01, 0.05], 2.0 + 0.1 / (l * l - 0.01) - 0.05 * l * l);
+        check(9, vec![1.5, 0.3, 0.02, 0.2, 0.05], 1.5 + 0.3 * l * l / (l * l - 0.02) + 0.2 * l * l / (l * l - 0.05));
+        // Conrady and Herzberger give n directly.
+        assert!((bk7_as(5, vec![1.5, 0.004, 0.0002]).index(l).unwrap() - (1.5 + 0.004 / l + 0.0002 / l.powf(3.5))).abs() < 1e-12);
+        let big_l = 1.0 / (l * l - 0.028);
+        assert!((bk7_as(3, vec![1.5, 0.003, 0.0001, -0.002, 0.0001, 0.0]).index(l).unwrap() - (1.5 + 0.003 * big_l + 0.0001 * big_l * big_l - 0.002 * l * l + 0.0001 * l.powi(4))).abs() < 1e-12);
+        assert!(bk7_as(99, vec![1.0]).index(l).is_none());
     }
 
     #[test]

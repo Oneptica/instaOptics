@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs'
-import { readFile, writeFile } from 'node:fs/promises'
-import { basename, join } from 'node:path'
+import { copyFile, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { basename, extname, join } from 'node:path'
 import { BrowserWindow, Menu, MessageChannelMain, app, dialog, ipcMain, nativeTheme, shell, utilityProcess, type MenuItem, type UtilityProcess } from 'electron'
 import type { MenuCommand } from '../shared/protocol'
 import { buildMenu } from './menu'
@@ -160,6 +160,29 @@ ipcMain.handle('export:png', async (event, rect: { x: number; y: number; width: 
   if (result.canceled || !result.filePath) return null
   await writeFile(result.filePath, image.toPNG())
   return result.filePath
+})
+
+// Glass catalogs (.agf) are copied into the app's data folder so they stay available.
+const catalogDir = () => join(app.getPath('userData'), 'catalogs')
+
+async function listCatalogs() {
+  await mkdir(catalogDir(), { recursive: true })
+  const names = (await readdir(catalogDir())).filter(name => extname(name).toLowerCase() === '.agf')
+  return Promise.all(names.map(async name => ({ name: basename(name, extname(name)), bytes: new Uint8Array(await readFile(join(catalogDir(), name))) })))
+}
+
+ipcMain.handle('catalogs:list', () => listCatalogs())
+ipcMain.handle('catalogs:add', async event => {
+  const window = BrowserWindow.fromWebContents(event.sender)!
+  const result = await dialog.showOpenDialog(window, { properties: ['openFile', 'multiSelections'], filters: [{ name: 'OpticStudio glass catalog', extensions: ['agf'] }] })
+  if (result.canceled) return listCatalogs()
+  await mkdir(catalogDir(), { recursive: true })
+  for (const path of result.filePaths) await copyFile(path, join(catalogDir(), `${basename(path, extname(path))}.agf`))
+  return listCatalogs()
+})
+ipcMain.handle('catalogs:remove', async (_event, name: string) => {
+  await rm(join(catalogDir(), `${basename(name)}.agf`), { force: true })
+  return listCatalogs()
 })
 
 ipcMain.on('document:state', (event, state: { dirty: boolean; path: string | null }) => {

@@ -46,6 +46,7 @@ export interface LensSystem {
   rayAiming: boolean
   targetEfl?: number
   optimization?: OptimizationSettings
+  glasses?: GlassDef[] // definitions of the catalog glasses the surfaces use
 }
 
 // Non-finite numbers arrive as null.
@@ -90,7 +91,10 @@ export interface Overview {
   layout: Layout
 }
 
-export interface GlassInfo { name: string; nd: number; vd: number }
+export interface GlassInfo { name: string; nd: number; vd: number; catalog?: string }
+
+/** A glass from an OpticStudio catalog: AGF dispersion formula 1–13 with its coefficients. */
+export interface GlassDef { name: string; formula: number; coefficients: number[]; nd: number; vd: number; range?: [number, number]; catalog?: string }
 
 export interface Sample { id: string; system: LensSystem }
 

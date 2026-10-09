@@ -5,6 +5,7 @@ import type { MenuCommand } from '../../shared/protocol'
 import {
   type EngineStatus, type Workbench, WorkbenchContext, documentReducer, fileName, initialDocument, isDirty, parseDocument, serializeDocument,
 } from './document'
+import { decodeAgf, parseAgf, setBuiltinNames, setCatalogs, toInfo, useCatalogs } from './glassLibrary'
 import { formatFixed } from './format'
 import { PANELS, panelTitle } from './panels/registry'
 import { showWelcomeOnStartup } from './panels/Welcome'
@@ -120,6 +121,14 @@ export function App() {
   const startedRef = useRef(false) // the Cooke triplet opens once, on the first engine connection
   useEffect(() => { docRef.current = doc }, [doc])
 
+  const catalogs = useCatalogs()
+  const allGlasses = useMemo(() => [...glasses, ...catalogs.flatMap(c => c.glasses.map(toInfo))], [glasses, catalogs])
+  useEffect(() => {
+    void api.catalogs.list().then(list => setCatalogs(list.map(c => ({ name: c.name, glasses: parseAgf(decodeAgf(c.bytes), c.name) }))))
+  }, [])
+  // A catalog that was just loaded can define glasses the open lens refers to.
+  useEffect(() => { dispatch({ type: 'glasses' }) }, [catalogs])
+
   const edit = useCallback((update: (system: LensSystem) => LensSystem) => dispatch({ type: 'edit', update }), [])
 
   // Engine: static data once per connection, and a fresh overview after every edit.
@@ -129,7 +138,9 @@ export function App() {
     void Promise.all([api.engine.request('version'), api.engine.request('glassCatalog'), api.engine.request('samples')]).then(([version, catalog, list]) => {
       if (cancelled) return
       setEngine(state => ({ ...state, version: JSON.parse(version.json) as string }))
-      setGlasses(JSON.parse(catalog.json) as GlassInfo[])
+      const builtIn = JSON.parse(catalog.json) as GlassInfo[]
+      setBuiltinNames(builtIn.map(g => g.name))
+      setGlasses(builtIn)
       const parsed = JSON.parse(list.json) as Sample[]
       setSamples(parsed)
       if (!startedRef.current) {
@@ -192,13 +203,13 @@ export function App() {
     const file = await api.file.importBinary('Zemax lens', ['zmx'])
     if (!file) return
     try {
-      const { system, warnings } = importZmx(decodeZmx(file.bytes), glasses)
+      const { system, warnings } = importZmx(decodeZmx(file.bytes), allGlasses)
       dispatch({ type: 'load', system, path: null })
       if (warnings.length) window.alert(`Imported ${fileName(file.path)} with notes:\n\n• ${warnings.join('\n• ')}`)
     } catch (error) {
       window.alert(`Could not import ${fileName(file.path)}: ${(error as Error).message}`)
     }
-  }, [confirmDiscard, glasses])
+  }, [confirmDiscard, allGlasses])
 
   const runCommand = useCallback((command: MenuCommand) => {
     const editingText = document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLTextAreaElement
@@ -267,8 +278,8 @@ export function App() {
     openSample,
   }), [runCommand, openSample])
   const workbench: Workbench = useMemo(
-    () => ({ doc, dispatch, edit, engine, glasses, raysPerField, setRaysPerField, samples, actions }),
-    [doc, edit, engine, glasses, raysPerField, samples, actions],
+    () => ({ doc, dispatch, edit, engine, glasses: allGlasses, raysPerField, setRaysPerField, samples, actions }),
+    [doc, edit, engine, allGlasses, raysPerField, samples, actions],
   )
   const paraxial = engine.overview?.paraxial
   const primary = doc.system.wavelengths[doc.system.primaryWavelength]

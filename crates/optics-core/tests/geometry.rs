@@ -94,3 +94,23 @@ fn folded_system_places_the_image_frame_after_the_fold() {
     // The fold moves the image sideways by the remaining distance, in y.
     assert!((layout.image.origin[1].abs() - (back - 20.0)).abs() < 1e-6, "{:?}", layout.image.origin);
 }
+
+#[test]
+fn glasses_defined_in_the_system_take_part_in_tracing() {
+    use optics_core::glass::GlassDef;
+    let reference = achromat();
+    let mut custom = reference.clone();
+    // N-BK7 and F2 redefined under other names with AGF Sellmeier 1 (K1 L1 K2 L2 K3 L3).
+    custom.glasses = vec![
+        GlassDef { name: "MY-CROWN".into(), formula: 2, coefficients: vec![1.03961212, 0.00600069867, 0.231792344, 0.0200179144, 1.01046945, 103.560653], ..Default::default() },
+        GlassDef { name: "my-flint".into(), formula: 2, coefficients: vec![1.34533359, 0.00997743871, 0.209073176, 0.0470450767, 0.937357162, 111.886764], ..Default::default() },
+    ];
+    custom.surfaces[0].material = "MY-CROWN".into();
+    custom.surfaces[1].material = "MY-FLINT".into(); // names are matched without regard to case
+    let a = paraxial_data(&reference).unwrap();
+    let b = paraxial_data(&custom).unwrap();
+    assert!((a.efl - b.efl).abs() < 1e-9, "{} vs {}", a.efl, b.efl);
+    let mut missing = custom.clone();
+    missing.surfaces[0].material = "NOT-LOADED".into();
+    assert!(missing.validate().is_err());
+}

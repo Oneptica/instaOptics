@@ -22,7 +22,7 @@ Try it in the browser: **[instaoptics.oneptica.com](https://instaoptics.oneptica
 
 - Sequential ray tracing: spherical, conic and even-asphere surfaces, mirrors, coordinate breaks, real ray aiming
 - Aperture: entrance pupil diameter, F/#, object NA, float by stop; fields: angle, object height, image height
-- Glasses: Schott catalog, fused silica, CaF₂, `nd/vd` model glasses
+- Glasses: Schott catalog, fused silica, CaF₂, `nd/vd` model glasses; OpticStudio `.agf` catalogs (all 13 dispersion formulas) with a search window and Abbe diagram
 - Spot diagram, ray fan, FFT MTF, through-focus MTF, MTF vs field, FFT PSF, wavefront map, field curvature and distortion, chromatic focal shift, Seidel aberrations, relative illumination, footprint
 - Export plots as PNG and data as CSV
 - Beam propagation (physical optics): Gaussian, super-Gaussian and flat-top beams through the system, on axis or along a field's chief ray, with side view, cross sections, beam radius and single-mode fibre coupling
