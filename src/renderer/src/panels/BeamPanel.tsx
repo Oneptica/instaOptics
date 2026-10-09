@@ -3,7 +3,7 @@ import { Select, toCsv } from '../analysis/AnalysisFrame'
 import { type AnalysisState, useAnalysis } from '../analysis/useAnalysis'
 import { NumberField } from '../components/NumberField'
 import { useWorkbench } from '../document'
-import { formatShort } from '../format'
+import { fieldLabel, formatShort } from '../format'
 import { Heatmap, colorAt } from '../plots/Heatmap'
 import { Legend, LinePlot, niceTicks, useSize } from '../plots/LinePlot'
 import { type PopResult, type Slice, type SourceKind, defaultRadius, popRequest, runPop, setPopUi, usePopStore } from './popStore'
@@ -201,6 +201,12 @@ export function BeamPanel() {
               <option value="topHat">Flat top (circular)</option>
             </select>
             <span />
+            <label title="The beam travels along the chief ray of this field">Field</label>
+            <select value={ui.field !== null && ui.field < system.fields.length ? ui.field : -1} onChange={e => setPopUi({ field: Number(e.target.value) < 0 ? null : Number(e.target.value) })}>
+              <option value={-1}>On axis</option>
+              {system.fields.map((f, i) => <option key={i} value={i}>{i + 1}: {fieldLabel(f, system.fieldType)}</option>)}
+            </select>
+            <span />
             <label>Wavelength</label>
             <select value={wavelength} onChange={e => setPopUi({ wavelength: Number(e.target.value) })}>
               {system.wavelengths.map((w, i) => <option key={i} value={i}>{w.toFixed(4)} µm</option>)}
@@ -235,9 +241,22 @@ export function BeamPanel() {
               <option value={512}>512 × 512 (slow)</option>
             </select>
             <span />
+            <label title="Mode field radius (1/e² intensity) of a single-mode fibre centred on the beam. Empty turns the coupling off.">Fibre mode radius</label>
+            <NumberField optional min={0} ariaLabel="Fibre mode field radius" placeholder="off" value={ui.fiber} onCommit={v => setPopUi({ fiber: v })} />
+            <span className="unit">mm</span>
             <label className="check span2"><input type="checkbox" checked={ui.aberrations} onChange={e => setPopUi({ aberrations: e.target.checked })} /> Include wavefront aberration</label>
             <label className="check span2"><input type="checkbox" checked={ui.apertures} onChange={e => setPopUi({ apertures: e.target.checked })} /> Clip at fixed surface apertures</label>
           </div>
+          {result?.coupling && (
+            <>
+              <h3>Fibre coupling</h3>
+              <table className="kv"><tbody>
+                <tr><th>At the image plane</th><td className="mono">{(100 * result.coupling.atImage).toFixed(2)}</td><td className="unit">%</td></tr>
+                <tr><th>Best in image space</th><td className="mono">{(100 * result.coupling.best).toFixed(2)}</td><td className="unit">%</td></tr>
+                <tr><th title="Path position of the best coupling">Best at z</th><td className="mono">{result.coupling.bestZ.toFixed(3)}</td><td className="unit">mm</td></tr>
+              </tbody></table>
+            </>
+          )}
           {gaussian && analytic.result && (
             <>
               <h3>Gaussian beam (analytic)</h3>
@@ -260,6 +279,17 @@ export function BeamPanel() {
           {result && (
             <div className={`beam-result${outdated ? ' stale' : ''}`}>
               {view === 'side' && <SideView result={result} options={side} />}
+              {view === 'radius' && result.slices.some(s => s.coupling !== null) && (
+                <div className="split-cell coupling-plot">
+                  <LinePlot
+                    xLabel="Distance along the axis (mm)"
+                    yLabel="Fibre coupling"
+                    yDomain={[0, 1]}
+                    xDomain={[result.surfaceZ[result.surfaceZ.length - 1], result.imageZ]}
+                    series={[{ points: result.slices.filter(s => s.z >= result.surfaceZ[result.surfaceZ.length - 1]).map(s => [s.z, s.coupling ?? 0] as [number, number]), color: 'var(--field-2)', width: 1.6 }]}
+                  />
+                </div>
+              )}
               {view === 'radius' && (
                 <LinePlot
                   xLabel="Distance along the axis (mm)"

@@ -4,7 +4,7 @@ use optics_core::pop::{PopSettings, PopResult, Source, gaussian_beam, simulate};
 use optics_core::system::{LensSystem, Surface, singlet};
 
 fn settings(source: Source, samples: usize, aberrations: bool) -> PopSettings {
-    PopSettings { source, wavelength: 0, samples, aberrations, apertures: true }
+    PopSettings { source, wavelength: 0, samples, aberrations, apertures: true, field: None, fiber_radius: None }
 }
 
 fn radius_at(result: &PopResult, z: f64) -> f64 {
@@ -135,4 +135,73 @@ fn through_focus_asymmetry_matches_the_fft_psf() {
     }
     let (pop_asym, fft_asym) = (results[0].0 - results[1].0, results[0].1 - results[1].1);
     assert!(pop_asym.signum() == fft_asym.signum() && fft_asym.abs() > 0.02, "asymmetry POP {pop_asym}, FFT {fft_asym}");
+}
+
+#[test]
+fn fold_mirror_does_not_change_the_beam() {
+    use optics_core::system::{CoordinateBreak, cooke_triplet};
+    let mut reference = cooke_triplet();
+    reference.wavelengths = vec![0.5876];
+    reference.primary_wavelength = 0;
+    let mut folded = reference.clone();
+    let last = folded.surfaces.len() - 1;
+    let back = folded.surfaces[last].thickness;
+    folded.surfaces[last].thickness = 20.0;
+    let cb = |tilt: f64, thickness: f64| Surface {
+        coordinate_break: Some(CoordinateBreak { decenter: [0.0, 0.0], tilt: [tilt, 0.0, 0.0] }),
+        ..Surface::new(0.0, thickness, "AIR")
+    };
+    folded.surfaces.push(cb(45.0, 0.0));
+    folded.surfaces.push(Surface::new(0.0, 0.0, "MIRROR"));
+    folded.surfaces.push(cb(45.0, -(back - 20.0)));
+    let source = || Source::Gaussian { radius: 2.0, waist: 0.0 };
+    let a = simulate(&reference, &settings(source(), 256, false)).unwrap();
+    let b = simulate(&folded, &settings(source(), 256, false)).unwrap();
+    let (wa, wb) = (a.slices.last().unwrap(), b.slices.last().unwrap());
+    assert!((wa.w_x / wb.w_x - 1.0).abs() < 1e-3, "{} vs {}", wa.w_x, wb.w_x);
+    assert!(b.warnings.iter().any(|w| w.contains("folded")));
+}
+
+#[test]
+fn off_axis_beam_follows_the_chief_ray() {
+    use optics_core::{TraceContext, analysis, paraxial_data};
+    let mut lens = optics_core::system::achromat();
+    lens.wavelengths = vec![lens.wavelengths[lens.primary_wavelength]];
+    lens.primary_wavelength = 0;
+    lens.fields = vec![0.0, 3.0];
+    let last = lens.surfaces.len() - 1;
+    lens.surfaces[last].thickness = paraxial_data(&lens).unwrap().image_distance;
+    let semi = lens.entrance_pupil_diameter / 2.0;
+    let run = |aberrations: bool, field: Option<usize>| {
+        let mut st = settings(Source::TopHat { radius: semi, curvature_radius: None }, 256, aberrations);
+        st.field = field;
+        simulate(&lens, &st).unwrap()
+    };
+    let ideal = run(false, Some(1));
+    let real = run(true, Some(1));
+    // The beam centre ends at the paraxial image height.
+    let paraxial = paraxial_data(&lens).unwrap();
+    assert!((real.slices.last().unwrap().center - paraxial.image_height).abs() < 1e-3 * paraxial.image_height.abs().max(1.0), "{} vs {}", real.slices.last().unwrap().center, paraxial.image_height);
+    // Strehl against the ray-based PSF at that field.
+    let reference_peak = run(false, None).slices.last().unwrap().peak;
+    let pop = real.slices.last().unwrap().peak / reference_peak;
+    let context = TraceContext::new(&lens, &paraxial);
+    let fft = analysis::psf(&context, &paraxial, 3.0, 64, 4, 32).unwrap().strehl;
+    println!("field 3°: POP {pop:.3}, FFT {fft:.3}, ideal peak ratio {:.3}", ideal.slices.last().unwrap().peak / reference_peak);
+    assert!((pop - fft).abs() < 0.08, "POP {pop} vs FFT {fft}");
+}
+
+#[test]
+fn fibre_coupling_follows_the_mode_overlap_formula() {
+    let lens = singlet();
+    // The analytic waist radius of the focused beam; the coupling is then maximal over the focal region.
+    let w0 = gaussian_beam(&lens, 0, 2.0, 0.0, 40).unwrap().image_waist.unwrap();
+    for ratio in [1.0, 1.5, 2.0] {
+        let mut st = settings(Source::Gaussian { radius: 2.0, waist: 0.0 }, 256, false);
+        st.fiber_radius = Some(ratio * w0);
+        let result = simulate(&lens, &st).unwrap();
+        let best = result.coupling.unwrap().best;
+        let expected = (2.0 * ratio / (1.0 + ratio * ratio)).powi(2);
+        assert!((best - expected).abs() < 0.03, "mode ratio {ratio}: coupling {best} vs {expected}");
+    }
 }

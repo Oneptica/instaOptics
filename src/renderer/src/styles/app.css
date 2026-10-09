@@ -471,3 +471,4 @@ button, input, select { font: inherit; color: inherit; }
 .side-view canvas { position: absolute; inset: 0; display: block; }
 .beam-table { flex: 1; overflow: auto; display: flex; flex-direction: column; }
 .beam-table .data-table { margin: 0; }
+.coupling-plot { flex: 0 0 38%; min-height: 150px; border-bottom: 1px solid var(--border); }

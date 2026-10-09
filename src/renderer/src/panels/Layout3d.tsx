@@ -3,6 +3,8 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { AnalysisFrame, Select } from '../analysis/AnalysisFrame'
 import { useAnalysis } from '../analysis/useAnalysis'
+import { useWorkbench } from '../document'
+import { defaultRadius, usePopStore } from './popStore'
 
 interface Layout3dResult {
   elements: Array<Array<[number, number]>> // (r, z)
@@ -31,7 +33,9 @@ function useThemeVersion() {
 // Optical z runs along three.js x; optical y stays y; optical x becomes three.js z.
 const toScene = ([x, y, z]: [number, number, number]) => new THREE.Vector3(z, y, x)
 
-function Scene({ layout }: { layout: Layout3dResult }) {
+interface BeamProfile { profile: Array<[number, number]> }
+
+function Scene({ layout, beam }: { layout: Layout3dResult; beam: BeamProfile | null }) {
   const mountRef = useRef<HTMLDivElement>(null)
   const cameraState = useRef<{ position: THREE.Vector3; target: THREE.Vector3 } | null>(null)
   const theme = useThemeVersion()
@@ -73,6 +77,15 @@ function Scene({ layout }: { layout: Layout3dResult }) {
     layout.elements.forEach(outline => lathe(outline, glass, true))
     const thin = keep(new THREE.MeshBasicMaterial({ color: token('--surface-stroke'), transparent: true, opacity: 0.15, side: THREE.DoubleSide, depthWrite: false }))
     layout.surfaces.forEach(profile => lathe(profile, thin, false))
+
+    // Beam envelope as a translucent tube around the axis.
+    if (beam && beam.profile.length > 1) {
+      const tube = keep(new THREE.LatheGeometry(beam.profile.map(([z, w]) => new THREE.Vector2(w, z)), 48))
+      const material = keep(new THREE.MeshBasicMaterial({ color: token('--field-3'), transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false }))
+      const mesh = new THREE.Mesh(tube, material)
+      mesh.rotation.z = -Math.PI / 2
+      scene.add(mesh)
+    }
 
     const stop = new THREE.Mesh(keep(new THREE.RingGeometry(layout.stopSemiDiameter, layout.stopSemiDiameter * 1.3, 72)), keep(new THREE.MeshBasicMaterial({ color: token('--stop'), side: THREE.DoubleSide })))
     stop.rotation.y = Math.PI / 2
@@ -142,7 +155,7 @@ function Scene({ layout }: { layout: Layout3dResult }) {
       renderer.dispose()
       mount.removeChild(renderer.domElement)
     }
-  }, [layout, theme, failed])
+  }, [layout, beam, theme, failed])
 
   if (failed) {
     return (
@@ -165,14 +178,27 @@ function Scene({ layout }: { layout: Layout3dResult }) {
 }
 
 export default function Layout3dPanel() {
+  const { doc } = useWorkbench()
+  const system = doc.system
+  const { ui } = usePopStore()
   const [ring, setRing] = useState(16)
+  const [showBeam, setShowBeam] = useState(false)
   const state = useAnalysis<Layout3dResult>({ kind: 'layout3d', ring })
+  // Beam radius along the system with the Beam Propagation window's source; paths are only straight without folds.
+  const straight = system.surfaces.every(surface => !surface.coordinateBreak && surface.material.trim().toUpperCase() !== 'MIRROR')
+  const radius = ui.radius ?? defaultRadius(ui, system)
+  const beam = useAnalysis<BeamProfile>({ kind: 'gaussianBeam', wavelength: Math.min(ui.wavelength, system.wavelengths.length - 1), radius, waist: ui.waist })
   return (
     <AnalysisFrame
       state={state}
-      controls={<Select label="Rays per ring" value={ring} options={[8, 12, 16, 24, 32].map(v => ({ value: v, label: String(v) }))} onChange={setRing} />}
+      controls={<>
+        <Select label="Rays per ring" value={ring} options={[8, 12, 16, 24, 32].map(v => ({ value: v, label: String(v) }))} onChange={setRing} />
+        <label className="tool-field" title={straight ? 'Gaussian beam envelope from the Beam Propagation source' : 'Not available for folded systems'}>
+          <input type="checkbox" disabled={!straight} checked={showBeam && straight} onChange={e => setShowBeam(e.target.checked)} /> Beam
+        </label>
+      </>}
     >
-      {layout => <Scene layout={layout} />}
+      {layout => <Scene layout={layout} beam={showBeam && straight ? beam.result : null} />}
     </AnalysisFrame>
   )
 }

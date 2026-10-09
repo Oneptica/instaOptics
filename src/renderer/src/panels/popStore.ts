@@ -15,10 +15,12 @@ export interface PopUi {
   samples: number
   aberrations: boolean
   apertures: boolean
+  field: number | null // field index the beam follows; null is on axis
+  fiber: number | null // mode field radius of a single-mode fibre, mm
 }
 
-export interface Slice { z: number; pitch: number; wX: number; wY: number; power: number; peak: number; xCut: number[]; yCut: number[]; surface: number | null }
-export interface PlaneMap { surface: number; z: number; halfWidth: number; size: number; intensity: number[]; phase: Array<number | null>; wX: number; wY: number; power: number; peak: number }
+export interface Slice { z: number; pitch: number; wX: number; wY: number; power: number; peak: number; xCut: number[]; yCut: number[]; surface: number | null; center: number; coupling: number | null }
+export interface PlaneMap { surface: number; z: number; halfWidth: number; size: number; intensity: number[]; phase: Array<number | null>; wX: number; wY: number; power: number; peak: number; center: number }
 export interface PopResult {
   wavelength: number
   samples: number
@@ -29,6 +31,8 @@ export interface PopResult {
   zStart: number
   analytic: Array<[number, number]> | null
   aberration: { rmsWaves: number; pvWaves: number } | null
+  coupling: { atImage: number; best: number; bestZ: number } | null
+  fieldAngle: number
   warnings: string[]
 }
 
@@ -42,7 +46,7 @@ interface Store {
   ms: number | null
 }
 
-const DEFAULT_UI: PopUi = { kind: 'gaussian', radius: null, waist: 0, order: 4, curvature: null, wavelength: 0, samples: 256, aberrations: true, apertures: true }
+const DEFAULT_UI: PopUi = { kind: 'gaussian', radius: null, waist: 0, order: 4, curvature: null, wavelength: 0, samples: 256, aberrations: true, apertures: true, field: null, fiber: null }
 const KEY = 'instaoptics:pop'
 
 function load(): PopUi {
@@ -75,7 +79,7 @@ export function popRequest(ui: PopUi, system: LensSystem) {
     : ui.kind === 'superGaussian'
       ? { kind: 'superGaussian', radius, order: ui.order, curvatureRadius: ui.curvature }
       : { kind: 'topHat', radius, curvatureRadius: ui.curvature }
-  const settings = { source, wavelength: Math.min(ui.wavelength, system.wavelengths.length - 1), samples: ui.samples, aberrations: ui.aberrations, apertures: ui.apertures }
+  const settings = { source, wavelength: Math.min(ui.wavelength, system.wavelengths.length - 1), samples: ui.samples, aberrations: ui.aberrations, apertures: ui.apertures, field: ui.field !== null && ui.field < system.fields.length ? ui.field : null, fiberRadius: ui.fiber }
   return { request: { kind: 'pop', settings }, key: JSON.stringify([system, settings]) }
 }
 

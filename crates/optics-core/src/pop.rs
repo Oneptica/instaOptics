@@ -46,6 +46,12 @@ pub struct PopSettings {
     /// Clip with surfaces that have a fixed semi-diameter.
     #[serde(default = "default_true")]
     pub apertures: bool,
+    /// Field index: the beam travels along that field's chief ray. None is on axis.
+    #[serde(default)]
+    pub field: Option<usize>,
+    /// Mode field radius (1/e² intensity) of a single-mode fibre; enables the coupling efficiency.
+    #[serde(default)]
+    pub fiber_radius: Option<f64>,
 }
 
 fn default_samples() -> usize {
@@ -74,6 +80,10 @@ pub struct Slice {
     pub y_cut: Vec<f32>,
     /// Set when the slice is the plane just after a surface.
     pub surface: Option<usize>,
+    /// Position of the beam centre (the chief ray) in the field's y direction, mm.
+    pub center: f64,
+    /// Power coupling into the fibre mode centred on the optical axis, when a fibre radius was given.
+    pub coupling: Option<f64>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -92,6 +102,17 @@ pub struct PlaneMap {
     pub w_y: f64,
     pub power: f64,
     pub peak: f64,
+    pub center: f64,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CouplingSummary {
+    /// Coupling at the image plane.
+    pub at_image: f64,
+    /// Best coupling found in image space and where it occurs (path position).
+    pub best: f64,
+    pub best_z: f64,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -115,6 +136,9 @@ pub struct PopResult {
     /// Analytic Gaussian beam radius (z, w) for Gaussian sources, to compare with the simulated radius.
     pub analytic: Option<Vec<[f64; 2]>>,
     pub aberration: Option<AberrationInfo>,
+    pub coupling: Option<CouplingSummary>,
+    /// Field angle the beam follows, degrees.
+    pub field_angle: f64,
     pub warnings: Vec<String>,
 }
 
@@ -173,12 +197,22 @@ fn path_positions(system: &LensSystem) -> (Vec<f64>, f64) {
 }
 
 pub fn check_supported(system: &LensSystem) -> Result<(), LensError> {
-    for (i, s) in system.surfaces.iter().enumerate() {
-        if s.coordinate_break.is_some() || s.decenter.is_some() || s.tilt.is_some() {
-            return Err(LensError(format!("Physical optics does not support coordinate breaks, decenter or tilt yet (surface {})", i + 1)));
+    for (i, surface) in system.surfaces.iter().enumerate() {
+        if surface.decenter.is_some() || surface.tilt.is_some() {
+            return Err(LensError(format!("Physical optics does not support surface decenter or tilt (surface {})", i + 1)));
+        }
+        if let Some(cb) = surface.coordinate_break {
+            if cb.decenter != [0.0, 0.0] {
+                return Err(LensError(format!("Physical optics does not support decentered coordinate breaks (surface {})", i + 1)));
+            }
         }
     }
     Ok(())
+}
+
+/// Coordinate breaks only rotate the frame the beam travels in; the unfolded path is what is simulated.
+fn has_tilted_break(system: &LensSystem) -> bool {
+    system.surfaces.iter().any(|s| s.coordinate_break.is_some_and(|cb| cb.tilt != [0.0, 0.0, 0.0]))
 }
 
 /// Gaussian beam through the system with the complex q parameter (paraxial, no aberrations or apertures).
@@ -254,6 +288,14 @@ pub fn gaussian_beam(system: &LensSystem, wavelength: usize, radius: f64, waist:
 }
 
 // ---------- the wave field ----------
+
+/// Where the chief ray runs in the gap being propagated: centre(s) = y + u · s along the path.
+#[derive(Clone, Copy)]
+struct ChiefGap {
+    y: f64,
+    u: f64,
+    start: f64,
+}
 
 struct Field {
     n: usize,
@@ -339,12 +381,13 @@ impl Field {
         });
     }
 
-    fn apply_aperture(&mut self, radius: f64) {
+    /// Circular aperture of `radius` about the optical axis; the grid is centred `center` mm off the axis in y.
+    fn apply_aperture(&mut self, radius: f64, center: f64) {
         let n = self.n;
         let (d, h) = (self.pitch, self.half());
         let (re, im) = (&mut self.re, &mut self.im);
         re.par_chunks_mut(n).zip(im.par_chunks_mut(n)).enumerate().for_each(|(i, (rr, ii))| {
-            let y = (i as f64 - h) * d;
+            let y = (i as f64 - h) * d + center;
             for j in 0..n {
                 let x = (j as f64 - h) * d;
                 // Anti-aliased edge: coverage of the pixel by the disc.
@@ -465,6 +508,34 @@ struct Run<'a> {
     max_step: f64,
     warnings: &'a mut Vec<String>,
     steps: usize,
+    chief: Option<ChiefGap>,
+    center: f64,
+    fiber: Option<f64>,
+}
+
+/// Power coupling into a Gaussian mode of radius `mode` centred on the grid: |∫ U ψ|² / (∫|U|² ∫ψ²).
+fn coupling_efficiency(field: &Field, k: f64, mode: f64) -> f64 {
+    let n = field.n;
+    let (d, h) = (field.pitch, field.half());
+    let (re, im) = (&field.re, &field.im);
+    let (or, oi, power) = (0..n).into_par_iter().map(|i| {
+        let y = (i as f64 - h) * d;
+        let (mut or, mut oi, mut p) = (0.0, 0.0, 0.0);
+        for j in 0..n {
+            let x = (j as f64 - h) * d;
+            let r2 = x * x + y * y;
+            let at = i * n + j;
+            // The reference sphere is part of the physical field; the fibre mode is at its waist (flat phase).
+            let (s, c) = (0.5 * k * field.inv_r * r2).sin_cos();
+            let psi = (-r2 / (mode * mode)).exp();
+            or += psi * (re[at] * c - im[at] * s);
+            oi += psi * (re[at] * s + im[at] * c);
+            p += re[at] * re[at] + im[at] * im[at];
+        }
+        (or, oi, p)
+    }).reduce(|| (0.0, 0.0, 0.0), |a, b| (a.0 + b.0, a.1 + b.1, a.2 + b.2));
+    let mode_power = PI * mode * mode / 2.0;
+    if power <= 0.0 { 0.0 } else { (or * or + oi * oi) * d * d / (power * mode_power) }
 }
 
 fn round4(v: f32) -> f32 {
@@ -483,7 +554,8 @@ impl Run<'_> {
         let x_cut: Vec<f32> = (0..nn).map(|j| round4((f.re[mid * nn + j].powi(2) + f.im[mid * nn + j].powi(2)) as f32 / peak as f32)).collect();
         let y_cut: Vec<f32> = (0..nn).map(|i| round4((f.re[i * nn + mid].powi(2) + f.im[i * nn + mid].powi(2)) as f32 / peak as f32)).collect();
         let (w_x, w_y) = (2.0 * m.x2.sqrt(), 2.0 * m.y2.sqrt());
-        self.slices.push(Slice { z: self.z, pitch: f.pitch, w_x, w_y, power: m.power, peak, x_cut, y_cut, surface });
+        let coupling = self.fiber.map(|mode| coupling_efficiency(f, k, mode));
+        self.slices.push(Slice { z: self.z, pitch: f.pitch, w_x, w_y, power: m.power, peak, x_cut, y_cut, surface, center: self.center, coupling });
         if let Some(index) = plane {
             let half_width = (2.4 * w_x.max(w_y)).clamp(f.pitch * 8.0, f.pitch * f.half());
             let size = 96;
@@ -499,7 +571,7 @@ impl Run<'_> {
                     phase.push(if p > 1e-3 { round4(b.atan2(a) as f32) } else { f32::NAN });
                 }
             }
-            self.planes.push(PlaneMap { surface: index, z: self.z, half_width, size, intensity, phase, w_x, w_y, power: m.power, peak });
+            self.planes.push(PlaneMap { surface: index, z: self.z, half_width, size, intensity, phase, w_x, w_y, power: m.power, peak, center: self.center });
         }
     }
 
@@ -551,6 +623,9 @@ impl Run<'_> {
             self.z += d;
             remaining -= d;
             self.steps += 1;
+            if let Some(gap) = self.chief {
+                self.center = gap.y + gap.u * (self.z - gap.start);
+            }
             self.snapshot(n, None, None);
         }
     }
@@ -606,10 +681,10 @@ fn make_source(source: &Source, samples: usize, lambda0: f64) -> Result<(Field, 
 }
 
 /// Wavefront error of the real system relative to the sphere about the paraxial focus, in waves on a unit-pupil grid.
-fn aberration_map(context: &TraceContext, paraxial: &ParaxialData, wavelength: f64, size: usize) -> Result<Option<(Vec<f64>, AberrationInfo)>, LensError> {
+fn aberration_map(context: &TraceContext, paraxial: &ParaxialData, field: f64, wavelength: f64, size: usize) -> Result<Option<(Vec<f64>, AberrationInfo)>, LensError> {
     let system = context.system;
     let shift = paraxial.image_distance - system.surfaces[system.last()].thickness;
-    let Some(opd) = OpdEvaluator::with_focus_shift(context, paraxial, 0.0, wavelength, shift)? else { return Ok(None) };
+    let Some(opd) = OpdEvaluator::with_focus_shift(context, paraxial, field, wavelength, shift)? else { return Ok(None) };
     let mut values = vec![f64::NAN; size * size];
     for i in 0..size {
         for j in 0..size {
@@ -677,12 +752,24 @@ pub fn simulate(system: &LensSystem, settings: &PopSettings) -> Result<PopResult
     let (field, start, ratio) = make_source(&settings.source, samples, lambda0)?;
     let mut warnings = Vec::new();
 
+    let field_angle = match settings.field {
+        Some(i) => *system.fields.get(i).ok_or_else(|| LensError(format!("No field {}", i + 1)))?,
+        None => 0.0,
+    };
+    let tan = field_angle.to_radians().tan();
     let paraxial = paraxial_data(system)?;
     let context = TraceContext::new(system, &paraxial);
+    // Paraxial chief ray: at surface 1 it is at −EPz·tan θ with slope tan θ; the beam grid follows it.
+    let chief = (tan != 0.0).then(|| crate::paraxial::trace(system, &n_all, -paraxial.entrance_pupil_z * tan, tan));
+
+    let folded = has_tilted_break(system);
+    if folded {
+        warnings.push("The system is folded by coordinate breaks: the unfolded path is simulated, tilted curved surfaces are treated as on-axis, and wavefront aberration is not applied".into());
+    }
     let mut aberration = None;
     let mut aberration_map_data = None;
-    if settings.aberrations {
-        match aberration_map(&context, &paraxial, lambda, 64)? {
+    if settings.aberrations && !folded {
+        match aberration_map(&context, &paraxial, field_angle, lambda, 64)? {
             Some((map, info)) => {
                 aberration_map_data = Some(map);
                 aberration = Some(info);
@@ -692,19 +779,18 @@ pub fn simulate(system: &LensSystem, settings: &PopSettings) -> Result<PopResult
     }
     // Height of the paraxial marginal ray on the last surface (signed): the pupil radius seen there.
     let marginal_height = {
-        let n_paraxial = system.medium_indices(system.primary_wavelength())?;
         let semi = system.entrance_pupil_diameter / 2.0;
         let ray = match system.object_distance {
-            None => crate::paraxial::trace(system, &n_paraxial, semi, 0.0),
+            None => crate::paraxial::trace(system, &n_all, semi, 0.0),
             Some(d) => {
                 let u = semi / (d + paraxial.entrance_pupil_z);
-                crate::paraxial::trace(system, &n_paraxial, u * d, u)
+                crate::paraxial::trace(system, &n_all, u * d, u)
             }
         };
         ray.heights[system.last()]
     };
 
-    let total = image_z - 0.0 + start.abs();
+    let total = image_z + start.abs();
     let mut run = Run {
         field,
         k0: 2.0 * PI / lambda0,
@@ -716,7 +802,14 @@ pub fn simulate(system: &LensSystem, settings: &PopSettings) -> Result<PopResult
         max_step: (total / 110.0).max(1e-3),
         warnings: &mut warnings,
         steps: 0,
+        chief: None,
+        center: 0.0,
+        fiber: settings.fiber_radius.filter(|r| *r > 0.0),
     };
+    // Before the first surface the chief ray is y0 + tan θ · z with z ≤ 0.
+    let y0 = -paraxial.entrance_pupil_z * tan;
+    run.chief = chief.as_ref().map(|_| ChiefGap { y: y0, u: tan, start: 0.0 });
+    run.center = y0 + tan * start;
     run.snapshot(1.0, None, None);
     if start < 0.0 {
         run.propagate(-start, 1.0);
@@ -726,12 +819,14 @@ pub fn simulate(system: &LensSystem, settings: &PopSettings) -> Result<PopResult
         let (before, after) = (n_all[i], n_all[i + 1]);
         let s = before.signum();
         let c = surface.curvature();
+        let chief_here = chief.as_ref().map_or(0.0, |ray| ray.heights[i]);
+        run.center = chief_here;
         // Paraxial effect of the surface on the reference sphere.
         let inv_r = run.field.inv_r;
         run.field.inv_r = if surface.is_mirror() { inv_r + 2.0 * s * c } else { (before.abs() * inv_r - s * (after.abs() - before.abs()) * c) / after.abs() };
         if settings.apertures {
             if let Some(a) = surface.semi_diameter {
-                run.field.apply_aperture(a);
+                run.field.apply_aperture(a, chief_here);
             }
         }
         if i == system.last() {
@@ -744,13 +839,14 @@ pub fn simulate(system: &LensSystem, settings: &PopSettings) -> Result<PopResult
         }
         run.z = surface_z[i];
         run.snapshot(after.abs(), Some(i), Some(i));
+        run.chief = chief.as_ref().map(|ray| ChiefGap { y: ray.heights[i], u: ray.angles[i] * surface.thickness.signum(), start: surface_z[i] });
         run.propagate(surface.thickness.abs(), after.abs());
     }
     run.z = image_z;
     run.snapshot(n_all[system.surfaces.len()].abs(), None, Some(system.surfaces.len()));
 
-    let analytic = if let Source::Gaussian { radius, waist } = settings.source {
-        gaussian_beam(system, settings.wavelength, radius, waist, 60).ok().map(|t| t.profile)
+    let analytic = if let (Source::Gaussian { radius, waist }, None) = (&settings.source, settings.field) {
+        gaussian_beam(system, settings.wavelength, *radius, *waist, 60).ok().map(|t| t.profile)
     } else {
         None
     };
@@ -758,6 +854,29 @@ pub fn simulate(system: &LensSystem, settings: &PopSettings) -> Result<PopResult
     if run.slices.last().is_some_and(|s| s.power < 0.97 * power_in) {
         run.warnings.push("Power was lost at apertures or at the edge of the grid".into());
     }
+    // Coupling at the image plane and the best value in image space, refined with a parabola through the top samples.
+    let coupling = run.fiber.and_then(|_| {
+        let last_surface_z = surface_z[system.last()];
+        let at_image = run.slices.last()?.coupling?;
+        let samples: Vec<(f64, f64)> = run.slices.iter().filter(|s| s.z >= last_surface_z).filter_map(|s| s.coupling.map(|c| (s.z, c))).collect();
+        let k = (0..samples.len()).max_by(|&a, &b| samples[a].1.total_cmp(&samples[b].1))?;
+        let (mut best_z, mut best) = samples[k];
+        if k > 0 && k + 1 < samples.len() {
+            let ((x0, y0), (x1, y1), (x2, y2)) = (samples[k - 1], samples[k], samples[k + 1]);
+            // Vertex of the parabola through three points with uneven spacing.
+            let denominator = (x0 - x1) * (x0 - x2) * (x1 - x2);
+            let a2 = (x2 * (y1 - y0) + x1 * (y0 - y2) + x0 * (y2 - y1)) / denominator;
+            let b2 = (x2 * x2 * (y0 - y1) + x1 * x1 * (y2 - y0) + x0 * x0 * (y1 - y2)) / denominator;
+            if a2 < 0.0 {
+                let vertex = -b2 / (2.0 * a2);
+                if vertex >= x0 && vertex <= x2 {
+                    best_z = vertex;
+                    best = a2 * vertex * vertex + b2 * vertex + (y1 - a2 * x1 * x1 - b2 * x1);
+                }
+            }
+        }
+        Some(CouplingSummary { at_image, best: best.min(1.0), best_z })
+    });
     let (slices, planes) = (run.slices, run.planes);
-    Ok(PopResult { wavelength: lambda, samples, slices, planes, surface_z, image_z, z_start: start, analytic, aberration, warnings })
+    Ok(PopResult { wavelength: lambda, samples, slices, planes, surface_z, image_z, z_start: start, analytic, aberration, coupling, field_angle, warnings })
 }
