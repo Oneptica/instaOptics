@@ -110,41 +110,78 @@ pub struct Ray3d {
     pub points: Vec<[f64; 3]>,
 }
 
+/// A body of revolution: the (r, z) outline in its own frame, and the frame in global coordinates
+/// (global = origin + rotation · local, rotation row-major).
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Body3d {
+    pub outline: Vec<[f64; 2]>,
+    pub origin: [f64; 3],
+    pub rotation: [f64; 9],
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Frame3d {
+    pub origin: [f64; 3],
+    pub rotation: [f64; 9],
+}
+
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Layout3d {
-    /// Closed (r, z) outlines of each glass element, revolved about the axis for display.
-    pub elements: Vec<Vec<[f64; 2]>>,
-    /// (r, z) profile of each air-to-air surface (e.g. a stop or dummy surface with a fixed aperture).
-    pub surfaces: Vec<Vec<[f64; 2]>>,
-    /// Rays through the pupil centre and a ring at its rim, for every field (primary wavelength).
+    /// Glass elements as bodies of revolution about their own axes.
+    pub elements: Vec<Body3d>,
+    /// Profiles of surfaces that are not glass interfaces (e.g. mirrors and dummy surfaces).
+    pub surfaces: Vec<Body3d>,
+    /// Rays through the pupil centre and a ring at its rim, for every field (primary wavelength), in global coordinates.
     pub rays: Vec<Ray3d>,
-    pub stop_z: f64,
+    pub stop: Frame3d,
     pub stop_semi_diameter: f64,
+    pub image: Frame3d,
     pub start_z: f64,
     pub image_z: f64,
     pub image_semi_height: f64,
 }
 
-/// Geometry for the 3D view: element outlines in (r, z) and real rays in 3D.
+fn frame3d(frame: &crate::trace::Frame) -> Frame3d {
+    Frame3d { origin: frame.origin, rotation: frame.rotation }
+}
+
+/// Half profile (y ≥ 0) of surface `i` in the coordinates of surface `reference`: (r, z) pairs.
+fn half_profile(context: &TraceContext, i: usize, reference: usize, h: f64, edge: f64) -> Vec<[f64; 2]> {
+    let surface = &context.system.surfaces[i];
+    let clear = h.min(surface_limit(surface));
+    let (frame, base) = (&context.frames[i], &context.frames[reference]);
+    (0..=STEPS)
+        .map(|k| {
+            let y = edge * k as f64 / STEPS as f64;
+            let sag = if surface.coordinate_break.is_some() { 0.0 } else { sag(surface, y.min(clear)) };
+            let local = base.to_local(frame.to_global([0.0, y, sag]));
+            [local[1], local[2]]
+        })
+        .collect()
+}
+
+/// Geometry for the 3D view: bodies of revolution with their frames, and real rays in 3D.
 pub fn layout_3d(context: &TraceContext, semi_diameters: &[f64], ring: usize) -> Result<Layout3d, LensError> {
     let system = context.system;
-    let half = |points: Vec<[f64; 2]>| -> Vec<[f64; 2]> { points.into_iter().filter(|p| p[1] >= 0.0).map(|[z, y]| [y, z]).collect() };
     let mut elements = Vec::new();
     for i in 0..system.surfaces.len().saturating_sub(1) {
         if !system.surfaces[i].is_glass() {
             continue;
         }
         let edge = semi_diameters[i].max(semi_diameters[i + 1]);
-        let mut outline = half(profile(context, i, semi_diameters[i], edge));
-        let mut back = half(profile(context, i + 1, semi_diameters[i + 1], edge));
+        let mut outline = half_profile(context, i, i, semi_diameters[i], edge);
+        let mut back = half_profile(context, i + 1, i, semi_diameters[i + 1], edge);
         back.reverse();
         outline.extend(back);
-        elements.push(outline);
+        let frame = &context.frames[i];
+        elements.push(Body3d { outline, origin: frame.origin, rotation: frame.rotation });
     }
     let surfaces = (0..system.surfaces.len())
         .filter(|&i| system.surfaces[i].coordinate_break.is_none() && !system.surfaces[i].is_glass() && (i == 0 || !system.surfaces[i - 1].is_glass()) && i != system.stop())
-        .map(|i| half(profile(context, i, semi_diameters[i], semi_diameters[i])))
+        .map(|i| Body3d { outline: half_profile(context, i, i, semi_diameters[i], semi_diameters[i]), origin: context.frames[i].origin, rotation: context.frames[i].rotation })
         .collect();
     let wavelength = system.primary_wavelength();
     let n = system.medium_indices(wavelength)?;
@@ -169,8 +206,9 @@ pub fn layout_3d(context: &TraceContext, semi_diameters: &[f64], ring: usize) ->
         elements,
         surfaces,
         rays,
-        stop_z: context.frames[stop].origin[2],
+        stop: frame3d(&context.frames[stop]),
         stop_semi_diameter: semi_diameters[stop],
+        image: frame3d(&context.image_frame),
         start_z: context.start_z,
         image_z: context.image_frame.origin[2],
         image_semi_height,

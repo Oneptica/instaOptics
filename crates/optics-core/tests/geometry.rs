@@ -67,3 +67,30 @@ fn aperture_and_field_types_convert() {
     top.fields = vec![r.fields[2]];
     assert!((paraxial_data(&top).unwrap().image_height - 18.0).abs() < 1e-9);
 }
+
+#[test]
+fn folded_system_places_the_image_frame_after_the_fold() {
+    use optics_core::layout::layout_3d;
+    let mut lens = cooke_triplet();
+    let last = lens.surfaces.len() - 1;
+    let back = lens.surfaces[last].thickness;
+    lens.surfaces[last].thickness = 20.0;
+    let cb = |tilt: f64, thickness: f64| Surface {
+        coordinate_break: Some(CoordinateBreak { decenter: [0.0, 0.0], tilt: [tilt, 0.0, 0.0] }),
+        ..Surface::new(0.0, thickness, "AIR")
+    };
+    lens.surfaces.push(cb(45.0, 0.0));
+    lens.surfaces.push(Surface::new(0.0, 0.0, "MIRROR"));
+    lens.surfaces.push(cb(45.0, -(back - 20.0)));
+    let paraxial = paraxial_data(&lens).unwrap();
+    let context = TraceContext::new(&lens, &paraxial);
+    let semi = vec![8.0; lens.surfaces.len()];
+    let layout = layout_3d(&context, &semi, 8).unwrap();
+    // The three glass elements keep the straight frame; the image plane sits 90° away from the first surface's axis.
+    assert_eq!(layout.elements.len(), 3);
+    assert!(layout.elements.iter().all(|e| (e.rotation[8] - 1.0).abs() < 1e-12));
+    let axis_z = layout.image.rotation[8];
+    assert!(axis_z.abs() < 1e-9, "image axis should be perpendicular to z, got {axis_z}");
+    // The fold moves the image sideways by the remaining distance, in y.
+    assert!((layout.image.origin[1].abs() - (back - 20.0)).abs() < 1e-6, "{:?}", layout.image.origin);
+}

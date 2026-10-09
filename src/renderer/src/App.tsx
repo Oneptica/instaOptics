@@ -76,6 +76,27 @@ function openPanel(dock: DockviewApi | null, id: string) {
   dock.addPanel({ id, component: id, title: panelTitle(id), position })
 }
 
+interface GridNode { type: 'branch' | 'leaf'; data: GridNode[] | { views: string[] } }
+
+/**
+ * Whether a saved layout still has the data tables in a group along the whole bottom. A layout dragged out of that
+ * shape is replaced by the default one at startup, so a stray drag never leaves the window permanently scrambled.
+ */
+export function hasBottomDataGroup(layout: { grid?: { root?: GridNode; orientation?: string }; panels?: Record<string, unknown> }): boolean {
+  const grid = layout.grid
+  if (!grid?.root || !layout.panels) return false
+  if (!('lensData' in layout.panels)) return true
+  const flip = (o: string) => o === 'HORIZONTAL' ? 'VERTICAL' : 'HORIZONTAL'
+  let node = grid.root, orientation = grid.orientation ?? 'HORIZONTAL'
+  // Wrapper branches with a single child only alternate the orientation.
+  while (node.type === 'branch' && (node.data as GridNode[]).length === 1) { node = (node.data as GridNode[])[0]; orientation = flip(orientation) }
+  if (node.type === 'leaf') return true
+  if (orientation !== 'VERTICAL') return false
+  const children = node.data as GridNode[]
+  const last = children[children.length - 1]
+  return last.type === 'leaf' && (last.data as { views: string[] }).views.includes('lensData')
+}
+
 type Theme = 'dark' | 'light'
 
 function initialTheme(): Theme {
@@ -206,7 +227,9 @@ export function App() {
     const saved = storage.get(KEYS.layout)
     try {
       if (!saved) throw new Error('no saved layout')
-      event.api.fromJSON(JSON.parse(saved))
+      const parsed = JSON.parse(saved)
+      if (!hasBottomDataGroup(parsed)) throw new Error('layout was rearranged')
+      event.api.fromJSON(parsed)
       if (event.api.panels.length === 0) throw new Error('empty layout')
     } catch {
       defaultLayout(event.api)
