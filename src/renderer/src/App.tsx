@@ -21,27 +21,38 @@ const storage = {
   remove(key: string) { try { localStorage.removeItem(key) } catch { /* storage unavailable */ } },
 }
 
-const KEYS = { layout: 'instaoptics:dock-layout', theme: 'instaoptics:theme', sidebar: 'instaoptics:sidebar' }
+// The layout key carries a version: changing the default arrangement starts everyone from it once.
+const KEYS = { layout: 'instaoptics:dock-layout-2', theme: 'instaoptics:theme', sidebar: 'instaoptics:sidebar' }
 
 const dockTheme: DockviewTheme = { name: 'instaoptics', className: 'dockview-theme-instaoptics' }
 
 const components: Record<string, (props: IDockviewPanelProps) => React.ReactNode> = Object.fromEntries(PANELS.map(panel => [panel.id, panel.render]))
 
+// Window areas: system views top left, simulation results top right, data tables along the bottom.
+type Area = 'left' | 'right' | 'bottom'
+const AREA_OF: Record<string, Area> = { layout: 'left', layout3d: 'left', lensData: 'bottom', systemData: 'bottom', welcome: 'bottom' }
+const areaOf = (id: string): Area => AREA_OF[id] ?? 'right'
+
+type Position = { referencePanel: string; direction: 'above' | 'below' | 'left' | 'right' | 'within' }
+
 function defaultLayout(dock: DockviewApi) {
   dock.clear()
-  const add = (id: string, position?: { referencePanel: string; direction: 'below' | 'right' | 'within' }) =>
-    dock.addPanel({ id, component: id, title: panelTitle(id), position })
+  const add = (id: string, position?: Position) => dock.addPanel({ id, component: id, title: panelTitle(id), position })
+  // The bottom group is the root, so it spans the full width; the others split the area above it.
   add('lensData')
   add('systemData', { referencePanel: 'lensData', direction: 'within' })
   add('welcome', { referencePanel: 'lensData', direction: 'within' })
-  add('layout', { referencePanel: 'lensData', direction: 'below' })
+  add('layout', { referencePanel: 'lensData', direction: 'above' })
+  add('layout3d', { referencePanel: 'layout', direction: 'within' })
   add('spot', { referencePanel: 'layout', direction: 'right' })
   add('mtf', { referencePanel: 'spot', direction: 'within' })
   add('rayFan', { referencePanel: 'spot', direction: 'within' })
+  dock.getPanel('layout')?.api.setActive()
   dock.getPanel('spot')?.api.setActive()
+  dock.getPanel('lensData')?.api.setActive()
   dock.getPanel('welcome')?.api.setActive()
-  dock.getPanel('lensData')?.group.api.setSize({ height: Math.round(dock.height * 0.36) })
-  dock.getPanel('spot')?.group.api.setSize({ width: Math.round(dock.width * 0.45) })
+  dock.getPanel('lensData')?.group.api.setSize({ height: Math.round(dock.height * 0.3) })
+  dock.getPanel('layout')?.group.api.setSize({ width: Math.round(dock.width * 0.5) })
 }
 
 function openPanel(dock: DockviewApi | null, id: string) {
@@ -51,12 +62,18 @@ function openPanel(dock: DockviewApi | null, id: string) {
   if (id !== 'welcome') dock.getPanel('welcome')?.api.close()
   const existing = dock.getPanel(id)
   if (existing) { existing.api.setActive(); return }
-  // Editor-side windows share the Lens Data group; analysis windows join the group of an open analysis window.
-  const editorSide = new Set(['lensData', 'systemData', 'welcome'])
-  const anchor = (editorSide.has(id)
-    ? dock.panels.find(panel => editorSide.has(panel.id))
-    : dock.panels.find(panel => !editorSide.has(panel.id) && panel.id !== 'layout')) ?? dock.activePanel
-  dock.addPanel({ id, component: id, title: panelTitle(id), position: anchor ? { referencePanel: anchor.id, direction: 'within' } : undefined })
+  const area = areaOf(id)
+  const inArea = (a: Area) => dock.panels.find(panel => panel.id !== id && areaOf(panel.id) === a)
+  let position: Position | undefined
+  const same = inArea(area)
+  if (same) position = { referencePanel: same.id, direction: 'within' }
+  else if (area === 'right' && inArea('left')) position = { referencePanel: inArea('left')!.id, direction: 'right' }
+  else if (area === 'left' && inArea('right')) position = { referencePanel: inArea('right')!.id, direction: 'left' }
+  else if (area === 'bottom' && dock.panels.length) position = { referencePanel: dock.panels[0].id, direction: 'below' }
+  // Nothing above yet (everything there was closed): open a new area above the data tables.
+  else if (area !== 'bottom' && inArea('bottom')) position = { referencePanel: inArea('bottom')!.id, direction: 'above' }
+  else if (dock.activePanel) position = { referencePanel: dock.activePanel.id, direction: 'within' }
+  dock.addPanel({ id, component: id, title: panelTitle(id), position })
 }
 
 type Theme = 'dark' | 'light'
