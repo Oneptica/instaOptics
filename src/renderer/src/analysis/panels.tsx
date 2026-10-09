@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useWorkbench } from '../document'
 import { fieldColor, fieldLabel, formatShort } from '../format'
 import { Heatmap } from '../plots/Heatmap'
+import { useZoomPan } from '../plots/useZoomPan'
 import { Legend, LinePlot, type Series, niceTicks, useSize } from '../plots/LinePlot'
 import { AnalysisFrame, Select, toCsv, wavelengthColor } from './AnalysisFrame'
 import {
@@ -31,17 +32,21 @@ function WavelengthLegend() {
 function SpotCell({ spot, half, airy, colors }: { spot: SpotField; half: number; airy: number; colors: string[] }) {
   const [ref, { width }] = useSize<HTMLDivElement>()
   const side = Math.max(60, Math.min(width, 320))
-  const scale = side / 2 / half
+  const { ref: svgRef, view, handlers } = useZoomPan<SVGSVGElement>()
+  const scale = side / 2 / half * view.k
+  const cx = side / 2 + view.ox, cy = side / 2 + view.oy
   return (
     <div className="spot-cell" ref={ref}>
-      <svg width={side} height={side} className="spot-plot">
+      <svg width={side} height={side} className="spot-plot" ref={svgRef} {...handlers} style={{ touchAction: 'none', cursor: view.k > 1 ? 'grab' : 'crosshair' }}>
+        <svg width={side} height={side} overflow="hidden">
+          <line x1={cx} x2={cx} y1={0} y2={side} className="cross" />
+          <line x1={0} x2={side} y1={cy} y2={cy} className="cross" />
+          {airy > 0 && airy * scale > 1 && <circle cx={cx} cy={cy} r={airy * scale} className="airy" />}
+          {spot.points.map(([x, y, w], i) => (
+            <circle key={i} cx={cx + x * scale} cy={cy - y * scale} r={1.3} fill={colors[w]} />
+          ))}
+        </svg>
         <rect x={0.5} y={0.5} width={side - 1} height={side - 1} className="frame" />
-        <line x1={side / 2} x2={side / 2} y1={0} y2={side} className="cross" />
-        <line x1={0} x2={side} y1={side / 2} y2={side / 2} className="cross" />
-        {airy > 0 && airy * scale > 1 && <circle cx={side / 2} cy={side / 2} r={airy * scale} className="airy" />}
-        {spot.points.map(([x, y, w], i) => (
-          <rect key={i} x={side / 2 + x * scale - 1} y={side / 2 - y * scale - 1} width={2} height={2} fill={colors[w]} />
-        ))}
       </svg>
       <div className="spot-caption mono">
         <div>Field {formatShort(spot.field)}° · y = {spot.reference[1].toFixed(4)} mm</div>
@@ -86,7 +91,7 @@ export function SpotPanel() {
 
 export function RayFanPanel() {
   const { doc } = useWorkbench()
-  const state = useAnalysis<RayFanField[]>({ kind: 'rayFan', samples: 61 })
+  const state = useAnalysis<RayFanField[]>({ kind: 'rayFan', samples: 121 })
   return (
     <AnalysisFrame
       state={state}
@@ -122,7 +127,7 @@ export function RayFanPanel() {
 export function MtfPanel() {
   const { doc } = useWorkbench()
   const [maxFrequency, setMaxFrequency] = useState<number>(0)
-  const state = useAnalysis<MtfResult>({ kind: 'mtf', size: 64, points: 101, maxFrequency: maxFrequency || null })
+  const state = useAnalysis<MtfResult>({ kind: 'mtf', size: 128, points: 201, maxFrequency: maxFrequency || null })
   const fields = doc.system.fields
   return (
     <AnalysisFrame
@@ -164,7 +169,7 @@ export function PsfPanel() {
   const fieldOptions = useFieldOptions()
   const [field, setField] = useState(0)
   const [scale, setScale] = useState<'linear' | 'log'>('linear')
-  const state = useAnalysis<PsfResult>({ kind: 'psf', field: Math.min(field, fieldOptions.length - 1), samples: 64, padding: 4, crop: 64 })
+  const state = useAnalysis<PsfResult>({ kind: 'psf', field: Math.min(field, fieldOptions.length - 1), samples: 128, padding: 4, crop: 128 })
   const log = scale === 'log'
   const transform = useMemo(() => log ? (v: number) => Math.log10(Math.max(v, 1e-5)) : undefined, [log])
   return (
@@ -219,7 +224,7 @@ export function WavefrontPanel() {
   const [field, setField] = useState(0)
   const [wavelength, setWavelength] = useState(doc.system.primaryWavelength)
   const f = Math.min(field, fieldOptions.length - 1), w = Math.min(wavelength, wavelengthOptions.length - 1)
-  const state = useAnalysis<WavefrontMap>({ kind: 'wavefront', field: f, wavelength: w, size: 96 })
+  const state = useAnalysis<WavefrontMap>({ kind: 'wavefront', field: f, wavelength: w, size: 192 })
   return (
     <AnalysisFrame
       state={state}
@@ -247,7 +252,7 @@ export function WavefrontPanel() {
 // ---------- field curvature and distortion ----------
 
 export function FieldCurvesPanel() {
-  const state = useAnalysis<FieldCurves>({ kind: 'fieldCurves', samples: 41 })
+  const state = useAnalysis<FieldCurves>({ kind: 'fieldCurves', samples: 121 })
   return (
     <AnalysisFrame
       state={state}
@@ -364,7 +369,7 @@ export function SeidelPanel() {
 // ---------- relative illumination ----------
 
 export function IlluminationPanel() {
-  const state = useAnalysis<Illumination>({ kind: 'illumination', samples: 31 })
+  const state = useAnalysis<Illumination>({ kind: 'illumination', samples: 91 })
   return (
     <AnalysisFrame
       state={state}

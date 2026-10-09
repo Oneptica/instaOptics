@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react'
 
 export function useSize<T extends HTMLElement>() {
   const ref = useRef<T>(null)
@@ -82,8 +82,45 @@ function logTicks(min: number, max: number): number[] {
   return ticks
 }
 
+type View = { h: [number, number]; v: [number, number] }
+
+/** Monotone cubic (Fritsch–Carlson) path through pixel points: smooth, never overshoots the data. */
+function smoothPath(points: Array<[number, number]>, vertical: boolean): string {
+  const [a, b] = vertical ? [1, 0] : [0, 1] // a: independent pixel axis, b: dependent
+  const t = points.map(p => p[a]), u = points.map(p => p[b])
+  const n = points.length
+  const sign = Math.sign(t[n - 1] - t[0])
+  const sorted = sign !== 0 && t.every((_, k) => k === 0 || (t[k] - t[k - 1]) * sign > 0)
+  const at = (tt: number, uu: number) => vertical ? `${uu.toFixed(1)} ${tt.toFixed(1)}` : `${tt.toFixed(1)} ${uu.toFixed(1)}`
+  let d = `M${at(t[0], u[0])}`
+  if (!sorted || n < 3) {
+    for (let k = 1; k < n; k++) d += `L${at(t[k], u[k])}`
+    return d
+  }
+  const delta = Array.from({ length: n - 1 }, (_, k) => (u[k + 1] - u[k]) / (t[k + 1] - t[k]))
+  const m = new Array<number>(n)
+  m[0] = delta[0]; m[n - 1] = delta[n - 2]
+  for (let k = 1; k < n - 1; k++) m[k] = delta[k - 1] * delta[k] <= 0 ? 0 : (delta[k - 1] + delta[k]) / 2
+  for (let k = 0; k < n - 1; k++) {
+    if (delta[k] === 0) { m[k] = 0; m[k + 1] = 0; continue }
+    const al = m[k] / delta[k], be = m[k + 1] / delta[k], r = al * al + be * be
+    if (r > 9) { const f = 3 / Math.sqrt(r); m[k] = f * al * delta[k]; m[k + 1] = f * be * delta[k] }
+  }
+  for (let k = 0; k < n - 1; k++) {
+    const dt = (t[k + 1] - t[k]) / 3
+    d += `C${at(t[k] + dt, u[k] + m[k] * dt)} ${at(t[k + 1] - dt, u[k + 1] - m[k + 1] * dt)} ${at(t[k + 1], u[k + 1])}`
+  }
+  return d
+}
+
+const readout = (v: number) => Math.abs(v) >= 1e5 || (v !== 0 && Math.abs(v) < 1e-3) ? v.toExponential(3) : String(Number(v.toPrecision(5)))
+
 export function LinePlot({ series, xLabel, yLabel, title, xDomain, yDomain, symmetricY, vertical, zeroLine = true, yLog, vlines }: LinePlotProps) {
   const [ref, { width, height }] = useSize<HTMLDivElement>()
+  const [view, setView] = useState<View | null>(null)
+  const [hover, setHover] = useState<[number, number] | null>(null)
+  const drag = useRef<{ x: number; y: number; view: View } | null>(null)
+  const geometry = useRef({ hMin: 0, hMax: 1, vMin: 0, vMax: 1, plotW: 1, plotH: 1 })
   const log = !!yLog && !vertical
   let [x0, x1] = xDomain ?? extent(series, 0)
   let [y0, y1] = yDomain ?? extent(series, 1, log)
@@ -91,12 +128,19 @@ export function LinePlot({ series, xLabel, yLabel, title, xDomain, yDomain, symm
   if (symmetricY && !yDomain) { const m = Math.max(Math.abs(y0), Math.abs(y1)) || 1; y0 = -m; y1 = m }
   if (!yDomain && !log) { const ticks = niceTicks(y0, y1); y0 = Math.min(y0, ticks[0]); y1 = Math.max(y1, ticks[ticks.length - 1]) }
   if (!xDomain) { const ticks = niceTicks(x0, x1); x0 = Math.min(x0, ticks[0]); x1 = Math.max(x1, ticks[ticks.length - 1]) }
+  const toV = (v: number) => log ? Math.log10(Math.max(v, y0 * 1e-3)) : v
+  const fit: View = vertical ? { h: [y0, y1], v: [x0, x1] } : { h: [x0, x1], v: [toV(y0), toV(y1)] }
+  const shown = view ?? fit
+  if (view) {
+    if (vertical) { [y0, y1] = view.h; [x0, x1] = view.v } else { [x0, x1] = view.h; [y0, y1] = log ? [10 ** view.v[0], 10 ** view.v[1]] : view.v }
+  }
   const xTicks = niceTicks(x0, x1, vertical ? 5 : 6), yTicks = log ? logTicks(y0, y1) : niceTicks(y0, y1, vertical ? 6 : 5)
   const ty = (v: number) => log ? Math.log10(Math.max(v, y0 * 1e-3)) : v
 
   const plotW = Math.max(1, width - M.left - M.right), plotH = Math.max(1, height - M.top - M.bottom)
   // In vertical mode the "x" data runs up the vertical axis and "y" data along the horizontal axis.
-  const [hMin, hMax, vMin, vMax] = vertical ? [y0, y1, x0, x1] : [x0, x1, ty(y0), ty(y1)]
+  const [hMin, hMax] = shown.h, [vMin, vMax] = shown.v
+  geometry.current = { hMin, hMax, vMin, vMax, plotW, plotH }
   const sx = (h: number) => M.left + (h - hMin) / (hMax - hMin) * plotW
   const sy = (v: number) => M.top + plotH - ((log ? ty(v) : v) - vMin) / (vMax - vMin) * plotH
   const at = (x: number, y: number): [number, number] => vertical ? [sx(y), sy(x)] : [sx(x), sy(y)]
@@ -104,18 +148,86 @@ export function LinePlot({ series, xLabel, yLabel, title, xDomain, yDomain, symm
   const hTicks = vertical ? yTicks : xTicks, vTicks = vertical ? xTicks : yTicks
 
   const path = (s: Series) => {
-    let d = '', pen = false
+    let d = ''
+    let run: Array<[number, number]> = []
+    const flush = () => { if (run.length === 1) d += `M${run[0][0].toFixed(1)} ${run[0][1].toFixed(1)}`; else if (run.length > 1) d += smoothPath(run, !!vertical); run = [] }
     for (const [x, y] of s.points) {
-      if (y === null || !Number.isFinite(y)) { pen = false; continue }
-      const [px, py] = at(x, y)
-      d += `${pen ? 'L' : 'M'}${px.toFixed(1)} ${py.toFixed(1)}`
-      pen = true
+      if (y === null || !Number.isFinite(y)) { flush(); continue }
+      run.push(at(x, y))
     }
+    flush()
     return d
   }
 
+  /** Fractions (0 to 1, from left and from bottom) of a client position within the plot frame; may lie outside. */
+  function fractions(clientX: number, clientY: number) {
+    const rect = ref.current!.getBoundingClientRect()
+    const g = geometry.current
+    return { fx: (clientX - rect.left - M.left) / g.plotW, fy: 1 - (clientY - rect.top - M.top) / g.plotH }
+  }
+
+  // Wheel zoom needs a non-passive listener to stop the page from scrolling.
+  useEffect(() => {
+    const element = ref.current
+    if (!element) return
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault()
+      const { fx, fy } = fractions(event.clientX, event.clientY)
+      const g = geometry.current
+      const k = Math.exp(Math.max(-200, Math.min(200, event.deltaY)) * 0.0015)
+      // The left margin zooms the vertical axis only, the bottom margin the horizontal axis only.
+      const zoomH = fx >= 0, zoomV = fy >= 0
+      const scale = (lo: number, hi: number, f: number): [number, number] => {
+        const c = lo + Math.max(0, Math.min(1, f)) * (hi - lo)
+        return [c - (c - lo) * k, c + (hi - c) * k]
+      }
+      setView(current => {
+        const base = current ?? { h: [g.hMin, g.hMax] as [number, number], v: [g.vMin, g.vMax] as [number, number] }
+        return { h: zoomH ? scale(base.h[0], base.h[1], fx) : base.h, v: zoomV ? scale(base.v[0], base.v[1], fy) : base.v }
+      })
+    }
+    element.addEventListener('wheel', onWheel, { passive: false })
+    return () => element.removeEventListener('wheel', onWheel)
+  }, [ref])
+
+  function onPointerDown(event: PointerEvent<HTMLDivElement>) {
+    if (event.button !== 0) return
+    event.currentTarget.setPointerCapture(event.pointerId)
+    const g = geometry.current
+    drag.current = { x: event.clientX, y: event.clientY, view: view ?? { h: [g.hMin, g.hMax], v: [g.vMin, g.vMax] } }
+  }
+
+  function onPointerMove(event: PointerEvent<HTMLDivElement>) {
+    const g = geometry.current
+    const start = drag.current
+    if (start) {
+      const dh = -(event.clientX - start.x) / g.plotW * (start.view.h[1] - start.view.h[0])
+      const dv = (event.clientY - start.y) / g.plotH * (start.view.v[1] - start.view.v[0])
+      setView({ h: [start.view.h[0] + dh, start.view.h[1] + dh], v: [start.view.v[0] + dv, start.view.v[1] + dv] })
+      return
+    }
+    const rect = ref.current!.getBoundingClientRect()
+    setHover([event.clientX - rect.left, event.clientY - rect.top])
+  }
+
+  // Data coordinates under the pointer.
+  let cursor: { x: number; y: number } | null = null
+  if (hover && hover[0] >= M.left && hover[0] <= M.left + plotW && hover[1] >= M.top && hover[1] <= M.top + plotH) {
+    const h = hMin + (hover[0] - M.left) / plotW * (hMax - hMin)
+    const v = vMin + (M.top + plotH - hover[1]) / plotH * (vMax - vMin)
+    cursor = vertical ? { x: v, y: h } : { x: h, y: log ? 10 ** v : v }
+  }
+
   return (
-    <div className="line-plot" ref={ref}>
+    <div
+      className={`line-plot${drag.current ? ' dragging' : ''}`}
+      ref={ref}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={() => { drag.current = null }}
+      onPointerLeave={() => setHover(null)}
+      onDoubleClick={() => setView(null)}
+    >
       {width > 0 && height > 0 && (
         <svg width={width} height={height}>
           {title && <text className="plot-title" x={M.left + plotW / 2} y={14}>{title}</text>}
@@ -140,11 +252,19 @@ export function LinePlot({ series, xLabel, yLabel, title, xDomain, yDomain, symm
           <text className="axis-label" transform={`translate(12 ${M.top + plotH / 2}) rotate(-90)`} textAnchor="middle">{vertical ? xLabel : yLabel}</text>
           <svg x={M.left} y={M.top} width={plotW} height={plotH} overflow="hidden">
             <g transform={`translate(${-M.left} ${-M.top})`}>
-              {series.map((s, i) => <path key={i} d={path(s)} fill="none" stroke={s.color} strokeWidth={s.width ?? 1.3} strokeDasharray={s.dash} />)}
+              {series.map((s, i) => <path key={i} d={path(s)} fill="none" stroke={s.color} strokeWidth={s.width ?? 1.3} strokeDasharray={s.dash} strokeLinejoin="round" strokeLinecap="round" />)}
+              {cursor && hover && (
+                <g className="crosshair">
+                  <line x1={hover[0]} x2={hover[0]} y1={M.top} y2={M.top + plotH} />
+                  <line x1={M.left} x2={M.left + plotW} y1={hover[1]} y2={hover[1]} />
+                </g>
+              )}
             </g>
           </svg>
+          {cursor && <text className="plot-readout" x={M.left + plotW - 6} y={M.top + 14} textAnchor="end">{readout(cursor.x)}, {readout(cursor.y)}</text>}
         </svg>
       )}
+      {view && <button className="plot-reset" title="Reset zoom (double-click the plot)" onClick={() => setView(null)} onPointerDown={e => e.stopPropagation()}><i className="codicon codicon-screen-full" /></button>}
     </div>
   )
 }

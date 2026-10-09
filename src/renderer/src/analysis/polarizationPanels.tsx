@@ -78,7 +78,7 @@ export function PolarizationPanel() {
   const [input, setInput] = useState<InputKey>('unpolarized')
   const [map, setMap] = useState<MapKey>('transmission')
   const f = Math.min(field, fieldOptions.length - 1), w = Math.min(wavelength, wavelengthOptions.length - 1)
-  const state = useAnalysis<PolarizationMap>({ kind: 'polarization', field: f, wavelength: w, grid: 65, input: inputRequest(input) })
+  const state = useAnalysis<PolarizationMap>({ kind: 'polarization', field: f, wavelength: w, grid: 129, input: inputRequest(input) })
   return (
     <AnalysisFrame
       state={state}

@@ -502,3 +502,12 @@ button, input, select { font: inherit; color: inherit; }
 .data-table td.left, .data-table th.left { text-align: left; }
 .operand-table .field-input { width: 64px; }
 .operand-table select { max-width: 120px; }
+
+/* Plot interaction */
+.line-plot { cursor: crosshair; touch-action: none; user-select: none; }
+.line-plot.dragging { cursor: grabbing; }
+.line-plot .crosshair line { stroke: var(--plot-axis); stroke-width: 1; stroke-dasharray: 3 3; pointer-events: none; }
+.line-plot .plot-readout { fill: var(--text-strong); font-family: var(--font-mono, monospace); pointer-events: none; }
+.plot-reset { position: absolute; top: 3px; right: 6px; background: var(--bg-header); border: 1px solid var(--border); color: var(--text); border-radius: 3px; width: 22px; height: 22px; cursor: pointer; display: grid; place-items: center; padding: 0; }
+.plot-reset:hover { background: var(--hover, var(--bg-header)); }
+.heatmap-readout { position: absolute; left: 4px; bottom: 4px; padding: 1px 5px; background: var(--bg-header); border: 1px solid var(--border); border-radius: 3px; font-size: 10.5px; color: var(--text-strong); pointer-events: none; }

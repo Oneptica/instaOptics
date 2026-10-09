@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useWorkbench } from '../document'
 import { fieldColor, fieldLabel, formatShort } from '../format'
 import { Legend, LinePlot, useSize } from '../plots/LinePlot'
+import { useZoomPan } from '../plots/useZoomPan'
 import { AnalysisFrame, Select, toCsv } from './AnalysisFrame'
 import { type ChromaticFocalShift, type Footprint, type MtfVsField, type ThroughFocus, useAnalysis } from './useAnalysis'
 
@@ -11,7 +12,7 @@ export function ThroughFocusPanel() {
   const { doc } = useWorkbench()
   const [frequency, setFrequency] = useState(50)
   const [range, setRange] = useState(0.2)
-  const state = useAnalysis<ThroughFocus>({ kind: 'throughFocus', frequency, range, steps: 31 })
+  const state = useAnalysis<ThroughFocus>({ kind: 'throughFocus', frequency, range, steps: 61 })
   return (
     <AnalysisFrame
       state={state}
@@ -47,7 +48,7 @@ const FREQUENCY_COLORS = ['var(--field-1)', 'var(--field-2)', 'var(--field-3)', 
 export function MtfVsFieldPanel() {
   const [set, setSet] = useState('10, 30, 50')
   const frequencies = FREQUENCY_SETS[set]
-  const state = useAnalysis<MtfVsField>({ kind: 'mtfVsField', frequencies, samples: 21 })
+  const state = useAnalysis<MtfVsField>({ kind: 'mtfVsField', frequencies, samples: 41 })
   return (
     <AnalysisFrame
       state={state}
@@ -103,18 +104,22 @@ function FootprintPlot({ footprint }: { footprint: Footprint }) {
   const [ref, { width, height }] = useSize<HTMLDivElement>()
   const side = Math.max(60, Math.min(width, height) - 24)
   const half = Math.max(footprint.semiDiameter, ...footprint.fields.flat().map(p => Math.max(Math.abs(p[0]), Math.abs(p[1])))) * 1.08 || 1
-  const s = side / 2 / half
+  const { ref: svgRef, view, handlers } = useZoomPan<SVGSVGElement>()
+  const s = side / 2 / half * view.k
+  const cx = side / 2 + view.ox, cy = side / 2 + view.oy
   return (
     <div className="footprint" ref={ref}>
       {width > 0 && (
-        <svg width={side} height={side}>
+        <svg width={side} height={side} ref={svgRef} {...handlers} style={{ touchAction: 'none', cursor: view.k > 1 ? 'grab' : 'crosshair' }}>
+          <svg width={side} height={side} overflow="hidden">
+            <line x1={cx} x2={cx} y1={0} y2={side} className="cross" />
+            <line x1={0} x2={side} y1={cy} y2={cy} className="cross" />
+            <circle cx={cx} cy={cy} r={footprint.semiDiameter * s} className="aperture" />
+            {footprint.fields.map((points, f) => points.map(([x, y], i) => (
+              <circle key={`${f}-${i}`} cx={cx + x * s} cy={cy - y * s} r={1.6} fill={fieldColor(f)} />
+            )))}
+          </svg>
           <rect x={0.5} y={0.5} width={side - 1} height={side - 1} className="frame" />
-          <line x1={side / 2} x2={side / 2} y1={0} y2={side} className="cross" />
-          <line x1={0} x2={side} y1={side / 2} y2={side / 2} className="cross" />
-          <circle cx={side / 2} cy={side / 2} r={footprint.semiDiameter * s} className="aperture" />
-          {footprint.fields.map((points, f) => points.map(([x, y], i) => (
-            <circle key={`${f}-${i}`} cx={side / 2 + x * s} cy={side / 2 - y * s} r={1.6} fill={fieldColor(f)} />
-          )))}
         </svg>
       )}
     </div>
