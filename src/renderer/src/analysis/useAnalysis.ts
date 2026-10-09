@@ -34,6 +34,7 @@ export type AnalysisRequest =
   | { kind: 'mtfVsField'; frequencies: number[]; samples: number }
   | { kind: 'chromaticFocalShift'; samples: number }
   | { kind: 'footprint'; surface: number; rings: number }
+  | { kind: 'gaussianBeam'; wavelength: number; radius: number; waist: number }
 
 export interface AnalysisState<T> { result: T | null; error: string | null; ms: number | null; busy: boolean }
 

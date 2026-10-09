@@ -25,6 +25,7 @@ Try it in the browser: **[instaoptics.oneptica.com](https://instaoptics.oneptica
 - Glasses: Schott catalog, fused silica, CaF₂, `nd/vd` model glasses
 - Spot diagram, ray fan, FFT MTF, through-focus MTF, MTF vs field, FFT PSF, wavefront map, field curvature and distortion, chromatic focal shift, Seidel aberrations, relative illumination, footprint
 - Export plots as PNG and data as CSV
+- Beam propagation (physical optics): Gaussian, super-Gaussian and flat-top beams through the system, with side view, cross sections and beam radius
 - Image simulation on a test chart or any image
 - Tolerancing: sensitivity and Monte Carlo
 - Optimization (damped least squares)

@@ -1,11 +1,14 @@
 import { useEffect, useRef } from 'react'
 import { useSize } from './LinePlot'
 
-export type Colormap = 'jet' | 'inferno' | 'gray'
+export type Colormap = 'jet' | 'inferno' | 'magma' | 'phase' | 'gray'
 
 const STOPS: Record<Colormap, Array<[number, number, number]>> = {
   jet: [[0, 0, 143], [0, 0, 255], [0, 255, 255], [255, 255, 0], [255, 0, 0], [128, 0, 0]],
   inferno: [[0, 0, 4], [40, 11, 84], [101, 21, 110], [159, 42, 99], [212, 72, 66], [245, 125, 21], [250, 193, 39], [252, 255, 164]],
+  magma: [[0, 0, 4], [28, 16, 68], [79, 18, 123], [129, 37, 129], [181, 54, 122], [229, 80, 100], [251, 135, 97], [254, 194, 135], [252, 253, 191]],
+  // Cyclic, for phase in [−π, π].
+  phase: [[255, 64, 64], [255, 220, 64], [64, 220, 96], [64, 200, 255], [96, 96, 255], [220, 64, 255], [255, 64, 64]],
   gray: [[0, 0, 0], [255, 255, 255]],
 }
 

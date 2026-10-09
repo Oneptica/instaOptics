@@ -453,3 +453,21 @@ button, input, select { font: inherit; color: inherit; }
 .status-button { border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
 .status-button.highlight { background: var(--accent); color: var(--accent-text); }
 .status-button:hover { filter: brightness(1.1); }
+
+.line-plot .vline line { stroke: var(--plot-axis); stroke-width: 1; stroke-dasharray: 2 3; }
+.line-plot .vline text { font-size: 9.5px; fill: var(--text-muted); }
+
+/* Beam propagation */
+.beam-body { flex: 1; min-height: 0; display: flex; }
+.beam-form { flex: 0 0 310px; padding: 4px 14px 14px; border-right: 1px solid var(--border); overflow: auto; }
+.beam-form .form-grid { grid-template-columns: 1fr 120px 32px; }
+.beam-view { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; position: relative; background: var(--plot-bg); }
+.beam-result { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.beam-result.stale { opacity: 0.55; }
+.beam-stale, .beam-warning { flex: none; margin: 6px 8px 0; padding: 4px 8px; border-radius: 3px; font-size: var(--font-size-small); display: flex; gap: 6px; align-items: center; }
+.beam-stale { background: var(--bg-hover); color: var(--text-muted); }
+.beam-warning { background: var(--error-bg); color: var(--warning); }
+.side-view { flex: 1; min-height: 0; position: relative; }
+.side-view canvas { position: absolute; inset: 0; display: block; }
+.beam-table { flex: 1; overflow: auto; display: flex; flex-direction: column; }
+.beam-table .data-table { margin: 0; }

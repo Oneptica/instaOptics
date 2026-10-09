@@ -316,6 +316,12 @@ pub struct OpdEvaluator<'c, 'a> {
 
 impl<'c, 'a> OpdEvaluator<'c, 'a> {
     pub fn new(context: &'c TraceContext<'a>, paraxial: &ParaxialData, field: f64, wavelength: f64) -> Result<Option<Self>, LensError> {
+        Self::with_focus_shift(context, paraxial, field, wavelength, 0.0)
+    }
+
+    /// Like `new`, with the reference sphere centred `focus_shift` mm further along the image-space chief ray, e.g. at
+    /// the paraxial focus when the image plane is elsewhere.
+    pub fn with_focus_shift(context: &'c TraceContext<'a>, paraxial: &ParaxialData, field: f64, wavelength: f64, focus_shift: f64) -> Result<Option<Self>, LensError> {
         let system = context.system;
         let n = system.medium_indices(wavelength)?;
         let primary = system.primary_wavelength();
@@ -324,9 +330,10 @@ impl<'c, 'a> OpdEvaluator<'c, 'a> {
         if !primary_chief.ok() || !chief.ok() {
             return Ok(None);
         }
-        let centre = primary_chief.end();
-        let chief_start = exit_point(&primary_chief);
         let chief_dir = primary_chief.direction;
+        let end = primary_chief.end();
+        let centre = [end[0] + focus_shift * chief_dir[0], end[1] + focus_shift * chief_dir[1], end[2] + focus_shift * chief_dir[2]];
+        let chief_start = exit_point(&primary_chief);
         let pupil_point = paraxial.exit_pupil_z.is_finite().then(|| {
             let t = (paraxial.exit_pupil_z - chief_start[2]) / chief_dir[2];
             [chief_start[0] + t * chief_dir[0], chief_start[1] + t * chief_dir[1], chief_start[2] + t * chief_dir[2]]
@@ -344,7 +351,7 @@ impl<'c, 'a> OpdEvaluator<'c, 'a> {
     }
 
     fn path_to_reference(&self, ray: &RealRay) -> f64 {
-        let image_index = *self.n.last().unwrap();
+        let image_index = self.n.last().unwrap().abs();
         let q = exit_point(ray);
         let d = ray.direction;
         let w = [q[0] - self.centre[0], q[1] - self.centre[1], q[2] - self.centre[2]];

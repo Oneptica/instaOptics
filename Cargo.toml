@@ -21,3 +21,7 @@ inherits = "release"
 lto = false
 codegen-units = 16
 incremental = true
+
+# The physical optics tests propagate full wave fields; unoptimized builds make them many times slower.
+[profile.test]
+opt-level = 3

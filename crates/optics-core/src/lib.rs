@@ -6,6 +6,7 @@ pub mod image_sim;
 pub mod layout;
 pub mod optimize;
 pub mod paraxial;
+pub mod pop;
 pub mod surface;
 pub mod system;
 pub mod tolerance;
@@ -60,6 +61,10 @@ pub enum AnalysisRequest {
     MtfVsField { frequencies: Vec<f64>, samples: usize },
     ChromaticFocalShift { samples: usize },
     Footprint { surface: usize, rings: usize },
+    /// Analytic Gaussian beam (complex q parameter).
+    GaussianBeam { wavelength: usize, radius: f64, waist: f64 },
+    /// Physical optics propagation of a beam through the system.
+    Pop { settings: pop::PopSettings },
 }
 
 fn to_value<T: Serialize>(value: T) -> serde_json::Value {
@@ -100,6 +105,8 @@ pub fn analyze(system: &LensSystem, request: &AnalysisRequest) -> Result<serde_j
             let semi = trace::effective_semi_diameters(system, &automatic);
             to_value(analysis::footprint(&context, index, rings.clamp(2, 20), semi[index])?)
         }
+        AnalysisRequest::GaussianBeam { wavelength, radius, waist } => to_value(pop::gaussian_beam(system, wavelength, radius, waist, 60)?),
+        AnalysisRequest::Pop { settings } => to_value(pop::simulate(system, &settings)?),
         AnalysisRequest::Layout3d { ring } => {
             let automatic = trace::automatic_semi_diameters(&context)?;
             let semi = trace::effective_semi_diameters(system, &automatic);
