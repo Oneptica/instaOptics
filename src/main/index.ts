@@ -35,6 +35,17 @@ function setSoftwareRendering(enabled: boolean) {
   saveStartupAndRestart({ softwareRendering: enabled })
 }
 
+// Start-up timing (ms since the process was created), written to startup-timing.log in the user data folder so slow
+// starts can be diagnosed on the machine where they happen.
+const timings: string[] = []
+function mark(label: string) {
+  timings.push(`${String(Math.round(Date.now() - process.getCreationTime()!)).padStart(6)} ms  ${label}`)
+  if (label === 'first window shown' || timings.length > 20) {
+    try { writeFileSync(join(app.getPath('userData'), 'startup-timing.log'), `${app.getVersion()} ${new Date().toISOString()}\n${timings.join('\n')}\n`) } catch { /* diagnostics only */ }
+  }
+}
+mark('main process script loaded')
+
 const FILE_FILTERS = [{ name: 'instaOptics lens', extensions: ['iol'] }, { name: 'JSON', extensions: ['json'] }]
 
 let compute: UtilityProcess | null = null
@@ -48,6 +59,7 @@ function nativeModulePath() {
 /** Starts the compute process (restarting it if it dies) and reconnects every open window. */
 function startCompute() {
   compute = utilityProcess.fork(join(__dirname, 'compute.js'), [nativeModulePath()], { serviceName: 'instaOptics engine' })
+  compute.once('spawn', () => mark('engine process started'))
   compute.on('exit', code => {
     compute = null
     if (quitting) return
@@ -87,7 +99,9 @@ function createWindow() {
       : { titleBarOverlay: { color: '#181818', symbolColor: '#cccccc', height: 34 } }),
     webPreferences: { preload: join(__dirname, '../preload/index.js'), sandbox: true, contextIsolation: true },
   })
-  window.once('ready-to-show', () => window.show())
+  window.once('ready-to-show', () => { mark('first window shown'); window.show() })
+  window.webContents.once('dom-ready', () => mark('page DOM ready'))
+  window.webContents.once('did-finish-load', () => mark('page loaded'))
   window.webContents.on('did-finish-load', () => connectEngine(window))
   window.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('https://')) void shell.openExternal(url)
@@ -233,6 +247,7 @@ ipcMain.on('app:softwareRendering', (_event, enabled: boolean) => setSoftwareRen
 ipcMain.handle('file:basename', (_event, path: string) => basename(path))
 
 app.whenReady().then(() => {
+  mark('app ready')
   app.setName('instaOptics')
   startCompute()
   buildMenu(sendMenu, () => createWindow(), { softwareRendering: !!startup.softwareRendering, setSoftwareRendering, scale: startup.scale ?? 0, setScale: scale => saveStartupAndRestart({ scale }) }, () => checkForUpdates(true))
