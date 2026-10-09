@@ -6,6 +6,7 @@ import { useWorkbench } from '../document'
 import { fieldLabel, formatShort } from '../format'
 import { Heatmap, colorAt } from '../plots/Heatmap'
 import { Legend, LinePlot, niceTicks, useSize } from '../plots/LinePlot'
+import { useDomainZoom } from '../plots/useZoomPan'
 import { type PopResult, type Slice, type SourceKind, defaultRadius, popRequest, runPop, setPopUi, usePopStore } from './popStore'
 
 interface SurfaceBeam { surface: number; z: number; w: number; radiusOfCurvature: number | null; waistDistance: number | null; waistRadius: number | null }
@@ -43,6 +44,18 @@ function SideView({ result, options }: { result: PopResult; options: SideOptions
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const nSurfaces = result.surfaceZ.length
 
+  // Full range of the view; the wheel and drag then narrow it (z along the axis, x across it).
+  const fullZ0 = options.region === 'image' ? result.surfaceZ[nSurfaces - 1] : result.zStart
+  const fullZ1 = result.imageZ
+  const fullHalf = (() => {
+    const w = (s: Slice) => options.axis === 'x' ? s.wX : s.wY
+    const visible = result.slices.filter(s => s.z >= fullZ0 - 1e-9 && s.z <= fullZ1 + 1e-9)
+    return 1.15 * Math.max(...visible.map(w), 1e-9) / options.zoom
+  })()
+  const zoomBox = useDomainZoom<HTMLDivElement>({ h: [fullZ0, fullZ1], v: [-fullHalf, fullHalf] }, { left: MARGIN.left, top: MARGIN.top, width: width - MARGIN.left - MARGIN.right, height: height - MARGIN.top - MARGIN.bottom }, hostRef)
+  const [viewZ0, viewZ1] = zoomBox.shown.h, viewHalf = (zoomBox.shown.v[1] - zoomBox.shown.v[0]) / 2
+  const viewCentre = (zoomBox.shown.v[1] + zoomBox.shown.v[0]) / 2
+
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas || width < 80 || height < 80) return
@@ -55,13 +68,10 @@ function SideView({ result, options }: { result: PopResult; options: SideOptions
     const color = (name: string) => style.getPropertyValue(name).trim()
 
     const slices = result.slices
-    const lastSurface = result.surfaceZ[nSurfaces - 1]
-    const z0 = options.region === 'image' ? lastSurface : result.zStart
-    const z1 = result.imageZ
-    const visible = slices.filter(s => s.z >= z0 - 1e-9 && s.z <= z1 + 1e-9)
+    const z0 = viewZ0, z1 = viewZ1
+    const visible = slices.filter(s => s.z >= z0 - (z1 - z0) && s.z <= z1 + (z1 - z0))
     const wOf = (s: Slice) => options.axis === 'x' ? s.wX : s.wY
-    const base = 1.15 * Math.max(...visible.map(wOf), 1e-9)
-    const half = base / options.zoom
+    const half = viewHalf
     const globalPeak = Math.max(...slices.map(s => s.peak))
 
     const plotW = width - MARGIN.left - MARGIN.right, plotH = height - MARGIN.top - MARGIN.bottom
@@ -74,7 +84,7 @@ function SideView({ result, options }: { result: PopResult; options: SideOptions
       const fa = options.normalize === 'global' ? a.peak / globalPeak : 1
       const fb = options.normalize === 'global' ? b.peak / globalPeak : 1
       for (let r = 0; r < ih; r++) {
-        const x = (0.5 - (r + 0.5) / ih) * 2 * half
+        const x = viewCentre + (0.5 - (r + 0.5) / ih) * 2 * half
         const v = cutAt(a, options.axis, x) * fa * (1 - t) + cutAt(b, options.axis, x) * fb * t
         const [R, G, B] = lut[Math.min(255, Math.round(255 * Math.pow(Math.max(0, Math.min(1, v)), options.gamma)))]
         const at = (r * iw + c) * 4
@@ -85,7 +95,7 @@ function SideView({ result, options }: { result: PopResult; options: SideOptions
     ctx.putImageData(image, Math.round(MARGIN.left * dpr), Math.round(MARGIN.top * dpr))
 
     const px = (z: number) => MARGIN.left + (z - z0) / (z1 - z0) * plotW
-    const py = (x: number) => MARGIN.top + plotH / 2 - x / half * plotH / 2
+    const py = (x: number) => MARGIN.top + plotH / 2 - (x - viewCentre) / half * plotH / 2
     // Surfaces and the image plane.
     ctx.save()
     ctx.beginPath(); ctx.rect(MARGIN.left, MARGIN.top, plotW, plotH); ctx.clip()
@@ -121,16 +131,21 @@ function SideView({ result, options }: { result: PopResult; options: SideOptions
     }
     ctx.fillText('Distance along the axis (mm)', MARGIN.left + plotW / 2, height - 3)
     ctx.textAlign = 'right'
-    for (const t of niceTicks(-half, half, 6)) {
-      if (Math.abs(t) > half) continue
+    for (const t of niceTicks(viewCentre - half, viewCentre + half, 6)) {
+      if (Math.abs(t - viewCentre) > half) continue
       ctx.beginPath(); ctx.moveTo(MARGIN.left - 4, py(t) + 0.5); ctx.lineTo(MARGIN.left, py(t) + 0.5); ctx.stroke()
       ctx.fillText(formatShort(Number(t.toPrecision(3))), MARGIN.left - 6, py(t) + 3.5)
     }
     ctx.save(); ctx.translate(11, MARGIN.top + plotH / 2); ctx.rotate(-Math.PI / 2); ctx.textAlign = 'center'
     ctx.fillText(`${options.axis} (mm)`, 0, 0); ctx.restore()
-  }, [result, options, width, height, nSurfaces])
+  }, [result, options, width, height, nSurfaces, viewZ0, viewZ1, viewHalf, viewCentre])
 
-  return <div className="side-view" ref={hostRef}><canvas ref={canvasRef} style={{ width, height }} /></div>
+  return (
+    <div className="side-view" ref={hostRef} {...zoomBox.handlers} style={{ touchAction: 'none' }}>
+      <canvas ref={canvasRef} style={{ width, height }} />
+      {zoomBox.zoomed && <button className="plot-reset" title="Reset zoom (double-click the plot)" onClick={zoomBox.reset} onPointerDown={e => e.stopPropagation()}><i className="codicon codicon-screen-full" /></button>}
+    </div>
+  )
 }
 
 // ---------- window ----------

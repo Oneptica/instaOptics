@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Select } from '../analysis/AnalysisFrame'
 import { NumberField } from '../components/NumberField'
 import { useSize } from '../plots/LinePlot'
+import { useZoomPan } from '../plots/useZoomPan'
 import { useWorkbench } from '../document'
 
 interface Scene { width: number; height: number; data: Uint8ClampedArray; name: string }
@@ -107,6 +108,7 @@ export function ImageSimPanel() {
   const [ms, setMs] = useState<number | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const [stageRef, stage] = useSize<HTMLDivElement>()
+  const zoom = useZoomPan<HTMLDivElement>(stageRef)
 
   function run() {
     setBusy(true)
@@ -159,9 +161,10 @@ export function ImageSimPanel() {
         </span>
       </div>
       <div className="sim-body">
-        <div className="sim-stage" ref={stageRef}>
+        <div className="sim-stage" ref={stageRef} {...zoom.handlers} style={{ touchAction: 'none', cursor: zoom.zoomed ? 'grab' : undefined }} title="Wheel to zoom, drag to pan, double-click to reset">
           {error && <div className="plot-banner"><i className="codicon codicon-error" /> {error}</div>}
-          <div className="sim-frame" style={frameSize(stage, scene, view === 'compare' && !!shownSim)}>
+          {zoom.zoomed && <button className="plot-reset" title="Reset zoom (double-click the image)" onClick={zoom.reset} onPointerDown={e => e.stopPropagation()}><i className="codicon codicon-screen-full" /></button>}
+          <div className="sim-frame" style={{ ...frameSize(stage, scene, view === 'compare' && !!shownSim), transform: `translate(${zoom.view.ox}px, ${zoom.view.oy}px) scale(${zoom.view.k})`, imageRendering: zoom.view.k > 2 ? 'pixelated' : 'auto' }}>
             {(view !== 'simulated' || !shownSim) && <ImageCanvas pixels={scene.data} width={scene.width} height={scene.height} />}
             {view !== 'input' && shownSim && (
               <ImageCanvas pixels={output} width={sim.width} height={sim.height} style={view === 'compare' ? { position: 'absolute', inset: 0, clipPath: `inset(0 0 0 ${split}%)` } : undefined} />
@@ -169,7 +172,7 @@ export function ImageSimPanel() {
             {view === 'compare' && shownSim && <div className="sim-split" style={{ left: `${split}%` }} />}
           </div>
           {view === 'compare' && shownSim && (
-            <input className="sim-slider" type="range" min={0} max={100} value={split} onChange={e => setSplit(Number(e.target.value))} aria-label="Comparison split" />
+            <input className="sim-slider" onPointerDown={e => e.stopPropagation()} type="range" min={0} max={100} value={split} onChange={e => setSplit(Number(e.target.value))} aria-label="Comparison split" />
           )}
         </div>
         <div className="sim-side tool-form">

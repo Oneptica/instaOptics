@@ -4,7 +4,8 @@ import { Select } from '../analysis/AnalysisFrame'
 import { useWorkbench } from '../document'
 import { decodeAgf, parseAgf, setCatalogs, useCatalogs } from '../glassLibrary'
 import { updateSurface } from '../lensEdit'
-import { useSize } from '../plots/LinePlot'
+import { niceTicks, useSize } from '../plots/LinePlot'
+import { useDomainZoom } from '../plots/useZoomPan'
 import { useSelectedSurface } from '../selection'
 
 const FORMULAS = ['Schott', 'Sellmeier 1', 'Herzberger', 'Sellmeier 2', 'Conrady', 'Sellmeier 3', 'Handbook of Optics 1', 'Handbook of Optics 2', 'Sellmeier 4', 'Extended', 'Sellmeier 5', 'Extended 2', 'Extended 3']
@@ -15,29 +16,36 @@ const ROW_LIMIT = 500
 interface Row extends GlassInfo { source: string; formula?: number; range?: [number, number] }
 
 function AbbeDiagram({ rows, colors, onPick, highlight }: { rows: Row[]; colors: Map<string, string>; onPick: (name: string) => void; highlight: string }) {
-  const [ref, { width, height }] = useSize<HTMLDivElement>()
+  const [sizeRef, { width, height }] = useSize<HTMLDivElement>()
   const valid = rows.filter(r => r.nd > 1 && r.vd > 0)
   const margin = { left: 40, right: 12, top: 10, bottom: 28 }
-  const [vMin, vMax, nMin, nMax] = [Math.min(...valid.map(r => r.vd), 20), Math.max(...valid.map(r => r.vd), 95), Math.min(...valid.map(r => r.nd), 1.4), Math.max(...valid.map(r => r.nd), 2.0)]
-  const px = (vd: number) => margin.left + (vMax - vd) / (vMax - vMin) * (width - margin.left - margin.right) // Abbe number runs right to left
-  const py = (nd: number) => margin.top + (nMax - nd) / (nMax - nMin) * (height - margin.top - margin.bottom)
-  const vTicks = [20, 30, 40, 50, 60, 70, 80, 90].filter(v => v >= vMin && v <= vMax)
-  const nTicks = [1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0].filter(v => v >= nMin && v <= nMax)
+  const fit = { h: [Math.max(...valid.map(r => r.vd), 95), Math.min(...valid.map(r => r.vd), 20)] as [number, number], v: [Math.min(...valid.map(r => r.nd), 1.4), Math.max(...valid.map(r => r.nd), 2.0)] as [number, number] }
+  const plotW = width - margin.left - margin.right, plotH = height - margin.top - margin.bottom
+  const zoom = useDomainZoom<HTMLDivElement>(fit, { left: margin.left, top: margin.top, width: plotW, height: plotH }, sizeRef)
+  // The Abbe number runs right to left, so the horizontal range is [vMax, vMin].
+  const [[vMax, vMin], [nMin, nMax]] = [zoom.shown.h, zoom.shown.v]
+  const px = (vd: number) => margin.left + (vMax - vd) / (vMax - vMin) * plotW
+  const py = (nd: number) => margin.top + (nMax - nd) / (nMax - nMin) * plotH
+  const vTicks = niceTicks(Math.min(vMin, vMax), Math.max(vMin, vMax), 8)
+  const nTicks = niceTicks(nMin, nMax, 7)
   return (
-    <div className="abbe" ref={ref}>
+    <div className="abbe" ref={sizeRef} {...zoom.handlers} style={{ touchAction: 'none' }}>
       {width > 60 && height > 60 && (
         <svg width={width} height={height}>
           <rect className="frame" x={margin.left} y={margin.top} width={width - margin.left - margin.right} height={height - margin.top - margin.bottom} />
           {vTicks.map(v => <g key={v}><line className="tick" x1={px(v)} x2={px(v)} y1={margin.top} y2={height - margin.bottom} /><text x={px(v)} y={height - 12} textAnchor="middle">{v}</text></g>)}
-          {nTicks.map(n => <g key={n}><line className="tick" x1={margin.left} x2={width - margin.right} y1={py(n)} y2={py(n)} /><text x={margin.left - 5} y={py(n) + 3.5} textAnchor="end">{n.toFixed(1)}</text></g>)}
+          {nTicks.map(n => <g key={n}><line className="tick" x1={margin.left} x2={width - margin.right} y1={py(n)} y2={py(n)} /><text x={margin.left - 5} y={py(n) + 3.5} textAnchor="end">{Number(n.toPrecision(4))}</text></g>)}
           <text className="axis" x={margin.left + (width - margin.left - margin.right) / 2} y={height - 1} textAnchor="middle">Abbe number v<tspan dy="2" fontSize="8">d</tspan></text>
+          <svg x={margin.left} y={margin.top} width={plotW} height={plotH} overflow="hidden"><g transform={`translate(${-margin.left} ${-margin.top})`}>
           {valid.map(r => (
             <circle key={`${r.source}/${r.name}`} cx={px(r.vd)} cy={py(r.nd)} r={r.name === highlight ? 5 : 3} fill={colors.get(r.source)} stroke={r.name === highlight ? 'var(--text-strong)' : 'none'} opacity={r.name === highlight ? 1 : 0.8} onClick={() => onPick(r.name)}>
               <title>{`${r.name} (${r.source}) nd ${r.nd.toFixed(5)}, vd ${r.vd.toFixed(2)}`}</title>
             </circle>
           ))}
+          </g></svg>
         </svg>
       )}
+      {zoom.zoomed && <button className="plot-reset" title="Reset zoom (double-click the plot)" onClick={zoom.reset} onPointerDown={e => e.stopPropagation()}><i className="codicon codicon-screen-full" /></button>}
     </div>
   )
 }

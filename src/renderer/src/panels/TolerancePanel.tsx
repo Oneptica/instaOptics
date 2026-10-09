@@ -3,6 +3,7 @@ import type { MonteCarloProgress } from '../../../shared/protocol'
 import { NumberField } from '../components/NumberField'
 import { useWorkbench } from '../document'
 import { LinePlot, niceTicks, useSize } from '../plots/LinePlot'
+import { useDomainZoom } from '../plots/useZoomPan'
 
 interface Settings { radius: number; thickness: number; decenter: number; tilt: number; index: number; abbe: number; compensator: 'focus' | 'none'; trials: number; seed: number }
 const DEFAULTS: Settings = { radius: 0.2, thickness: 0.05, decenter: 0.02, tilt: 1, index: 0.0005, abbe: 0.5, compensator: 'focus', trials: 500, seed: 1 }
@@ -32,26 +33,30 @@ function percentile(sorted: number[], p: number) {
 function Histogram({ values, nominal }: { values: number[]; nominal: number }) {
   const [ref, { width, height }] = useSize<HTMLDivElement>()
   const finite = values.filter(Number.isFinite).map(v => v * 1000)
-  if (!finite.length) return <div className="line-plot" ref={ref} />
-  const lo = Math.min(...finite, nominal * 1000), hi = Math.max(...finite)
+  const lo = finite.length ? Math.min(...finite, nominal * 1000) : 0, hi = finite.length ? Math.max(...finite) : 1
   const bins = 30, span = hi - lo || 1
-  const counts = new Array(bins).fill(0)
+  const counts = new Array<number>(bins).fill(0)
   for (const v of finite) counts[Math.min(bins - 1, Math.floor((v - lo) / span * bins))]++
-  const peak = Math.max(...counts)
+  const peak = Math.max(...counts, 1)
   const left = 48, bottom = 34, top = 22, right = 12
   const plotW = Math.max(1, width - left - right), plotH = Math.max(1, height - top - bottom)
-  const xTicks = niceTicks(lo, hi, 5), yTicks = niceTicks(0, peak * 1.08, 4)
-  const sx = (v: number) => left + (v - lo) / span * plotW
-  const yMax = Math.max(peak * 1.08, yTicks[yTicks.length - 1] || 1)
-  const sy = (c: number) => top + plotH - c / yMax * plotH
+  const yFit = Math.max(peak * 1.08, niceTicks(0, peak * 1.08, 4).at(-1) ?? 1)
+  const zoom = useDomainZoom<HTMLDivElement>({ h: [lo, lo + span], v: [0, yFit] }, { left, top, width: plotW, height: plotH }, ref)
+  if (!finite.length) return <div className="line-plot" ref={ref} />
+  const [x0, x1] = zoom.shown.h, [y0, y1] = zoom.shown.v
+  const xTicks = niceTicks(x0, x1, 5), yTicks = niceTicks(y0, y1, 4)
+  const sx = (v: number) => left + (v - x0) / (x1 - x0) * plotW
+  const sy = (c: number) => top + plotH - (c - y0) / (y1 - y0) * plotH
   return (
-    <div className="line-plot" ref={ref}>
+    <div className="line-plot" ref={ref} {...zoom.handlers}>
       {width > 0 && (
         <svg width={width} height={height}>
           <text className="plot-title" x={left + plotW / 2} y={14}>Distribution of RMS spot radius</text>
           <g className="grid-lines">{yTicks.map(t => <line key={t} x1={left} x2={left + plotW} y1={sy(t)} y2={sy(t)} />)}</g>
-          {counts.map((c, i) => <rect key={i} x={left + i / bins * plotW + 0.5} width={plotW / bins - 1} y={sy(c)} height={sy(0) - sy(c)} fill="var(--field-1)" opacity={0.75} />)}
-          <line x1={sx(nominal * 1000)} x2={sx(nominal * 1000)} y1={top} y2={top + plotH} stroke="var(--field-3)" strokeDasharray="4 3" />
+          <svg x={left} y={top} width={plotW} height={plotH} overflow="hidden"><g transform={`translate(${-left} ${-top})`}>
+            {counts.map((c, i) => <rect key={i} x={sx(lo + i / bins * span) + 0.5} width={Math.max(0.5, plotW * span / bins / (x1 - x0) - 1)} y={sy(c)} height={Math.max(0, sy(0) - sy(c))} fill="var(--field-1)" opacity={0.75} />)}
+            <line x1={sx(nominal * 1000)} x2={sx(nominal * 1000)} y1={top} y2={top + plotH} stroke="var(--field-3)" strokeDasharray="4 3" />
+          </g></svg>
           <rect className="frame" x={left} y={top} width={plotW} height={plotH} />
           <g className="tick-labels">
             {xTicks.map(t => <text key={t} x={sx(t)} y={top + plotH + 14} textAnchor="middle">{t.toFixed(xTicks.length > 1 && xTicks[1] - xTicks[0] < 1 ? 2 : 1)}</text>)}
@@ -60,6 +65,7 @@ function Histogram({ values, nominal }: { values: number[]; nominal: number }) {
           <text className="axis-label" x={left + plotW / 2} y={height - 4} textAnchor="middle">RMS spot radius (µm) · dashed: nominal</text>
         </svg>
       )}
+      {zoom.zoomed && <button className="plot-reset" title="Reset zoom (double-click the plot)" onClick={zoom.reset} onPointerDown={e => e.stopPropagation()}><i className="codicon codicon-screen-full" /></button>}
     </div>
   )
 }
