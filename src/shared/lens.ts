@@ -5,6 +5,7 @@ export interface Surface {
   radius: number // 0 means flat
   thickness: number
   material: string // '' / 'AIR', a catalog glass, or a model glass "nd/vd"
+  coating?: string // thin-film coating text, e.g. "MgF2" or "HR@1064"; absent means uncoated
   semiDiameter?: number // fixed clear semi-aperture; absent means automatic
   conic?: number
   aspheric?: number[]

@@ -25,6 +25,20 @@ pub struct Failure {
     pub reason: FailureReason,
 }
 
+/// One refraction or reflection, in global coordinates, for polarization and coating calculations.
+#[derive(Clone, Copy, Debug)]
+pub struct Bounce {
+    pub surface: usize,
+    pub k_in: Vec3,
+    pub k_out: Vec3,
+    /// Unit surface normal.
+    pub normal: Vec3,
+    /// Refractive indices before and after (positive).
+    pub n_in: f64,
+    pub n_out: f64,
+    pub mirror: bool,
+}
+
 #[derive(Clone, Debug)]
 pub struct RealRay {
     /// Start point, one point per surface reached, then the image plane point when the ray survives, in image
@@ -40,6 +54,8 @@ pub struct RealRay {
     pub direction: Vec3,
     /// Optical path from the object (or an incident plane wavefront) to the last surface reached.
     pub opl: f64,
+    /// Every refraction or reflection the ray went through.
+    pub bounces: Vec<Bounce>,
 }
 
 impl RealRay {
@@ -205,15 +221,17 @@ impl<'a> TraceContext<'a> {
         let mut direction = start_direction;
         let mut world = vec![position];
         let mut local_hits = Vec::new();
+        let mut bounces: Vec<Bounce> = Vec::new();
         // For a collimated beam the optical path is measured from the plane wavefront through the origin.
         let mut opl = if self.system.object_distance.is_none() { dot(direction, position) } else { 0.0 };
-        let finish = |world: Vec<Vec3>, local: Vec<[f64; 2]>, failure: Option<Failure>, direction: Vec3, opl: f64| RealRay {
+        let finish = |world: Vec<Vec3>, local: Vec<[f64; 2]>, bounces: Vec<Bounce>, failure: Option<Failure>, direction: Vec3, opl: f64| RealRay {
             points: world.iter().map(|&p| self.to_image(p)).collect(),
             world,
             local,
             failure,
             direction: self.image_frame.dir_to_local(direction),
             opl,
+            bounces,
         };
         let fail = |surface: usize, reason: FailureReason| Some(Failure { surface, reason });
         for i in 0..=last {
@@ -226,13 +244,13 @@ impl<'a> TraceContext<'a> {
                 // apertures) but keep the ray where it is: the next surface may lie before that plane, e.g. a
                 // 45° fold mirror at the same vertex.
                 if local_direction[2].abs() < 1e-15 {
-                    return finish(world, local_hits, fail(i, FailureReason::Miss), direction, opl);
+                    return finish(world, local_hits, bounces, fail(i, FailureReason::Miss), direction, opl);
                 }
                 let t = -local[2] / local_direction[2];
                 world.push(add(position, [t * direction[0], t * direction[1], t * direction[2]]));
                 local_hits.push([local[0] + t * local_direction[0], local[1] + t * local_direction[1]]);
                 if i == last && last < surfaces.len() - 1 {
-                    return finish(world, local_hits, None, direction, opl);
+                    return finish(world, local_hits, bounces, None, direction, opl);
                 }
                 continue;
             }
@@ -243,10 +261,10 @@ impl<'a> TraceContext<'a> {
                 local_direction = rotate(&rotation, local_direction);
             }
             let Some(hit) = intersect(surface, local, local_direction) else {
-                return finish(world, local_hits, fail(i, FailureReason::Miss), direction, opl);
+                return finish(world, local_hits, bounces, fail(i, FailureReason::Miss), direction, opl);
             };
             if hit.t < -1e-9 && i > 0 {
-                return finish(world, local_hits, fail(i, FailureReason::Backward), direction, opl);
+                return finish(world, local_hits, bounces, fail(i, FailureReason::Backward), direction, opl);
             }
             let local_hit = [local[0] + hit.t * local_direction[0], local[1] + hit.t * local_direction[1], local[2] + hit.t * local_direction[2]];
             let vertex_hit = if frame.is_some() { add(rotate_back(&rotation, local_hit), [offset[0], offset[1], 0.0]) } else { local_hit };
@@ -257,12 +275,12 @@ impl<'a> TraceContext<'a> {
             if clip {
                 if let Some(limit) = self.clip[i] {
                     if local_hit[0].hypot(local_hit[1]) > limit + 1e-9 {
-                        return finish(world, local_hits, fail(i, FailureReason::Clip), direction, opl);
+                        return finish(world, local_hits, bounces, fail(i, FailureReason::Clip), direction, opl);
                     }
                 }
             }
             if i == last && last < surfaces.len() - 1 {
-                return finish(world, local_hits, None, direction, opl);
+                return finish(world, local_hits, bounces, None, direction, opl);
             }
 
             let mut normal = hit.normal;
@@ -281,7 +299,7 @@ impl<'a> TraceContext<'a> {
                 let mu = n[i].abs() / n[i + 1].abs();
                 let k = 1.0 - mu * mu * (1.0 - cos_i * cos_i);
                 if k < 0.0 {
-                    return finish(world, local_hits, fail(i, FailureReason::Tir), direction, opl);
+                    return finish(world, local_hits, bounces, fail(i, FailureReason::Tir), direction, opl);
                 }
                 let g = k.sqrt() - mu * cos_i;
                 normalize([
@@ -291,17 +309,28 @@ impl<'a> TraceContext<'a> {
                 ])
             };
             let in_vertex = if frame.is_some() { rotate_back(&rotation, new_direction) } else { new_direction };
-            direction = vertex.dir_to_global(in_vertex);
+            let new_global = vertex.dir_to_global(in_vertex);
+            let normal_vertex = if frame.is_some() { rotate_back(&rotation, normal) } else { normal };
+            bounces.push(Bounce {
+                surface: i,
+                k_in: direction,
+                k_out: new_global,
+                normal: vertex.dir_to_global(normal_vertex),
+                n_in: n[i].abs(),
+                n_out: n[i + 1].abs(),
+                mirror: surface.is_mirror(),
+            });
+            direction = new_global;
         }
         // Image plane: z = 0 in the image frame.
         let local = self.image_frame.to_local(position);
         let local_direction = self.image_frame.dir_to_local(direction);
         let t = if local_direction[2].abs() < 1e-15 { -1.0 } else { -local[2] / local_direction[2] };
         if t < -1e-9 {
-            return finish(world, local_hits, fail(surfaces.len(), FailureReason::Backward), direction, opl);
+            return finish(world, local_hits, bounces, fail(surfaces.len(), FailureReason::Backward), direction, opl);
         }
         world.push(add(position, [t * direction[0], t * direction[1], t * direction[2]]));
-        finish(world, local_hits, None, direction, opl)
+        finish(world, local_hits, bounces, None, direction, opl)
     }
 
     fn stop_hit(&self, field_angle: f64, ax: f64, ay: f64, n: &[f64]) -> Option<[f64; 2]> {

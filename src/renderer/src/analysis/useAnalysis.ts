@@ -20,6 +20,14 @@ export interface MtfVsField { angles: number[]; frequencies: number[]; curves: A
 export interface ChromaticFocalShift { wavelengths: number[]; shift: number[]; range: number }
 export interface Footprint { surface: number; fields: Array<Array<[number, number]>>; semiDiameter: number }
 
+export interface CoatingCurves { surface: number; description: string; angles: number[]; rS: number[]; rP: number[]; tS: number[]; tP: number[]; wavelengths: number[]; rWavelength: number[]; tWavelength: number[] }
+export interface PolarizationMap {
+  fieldAngle: number; size: number; transmission: N[]; diattenuation: N[]; retardance: N[]; orientation: N[]; ellipticity: N[]
+  meanTransmission: N; minTransmission: N; maxDiattenuation: number; rmsRetardance: N; surfaceTransmission: number[]
+}
+export interface FieldTransmission { field: number; mean: N; min: N; maxDiattenuation: number; rmsRetardance: N }
+export type PolInput = { kind: 'linear'; angle: number } | { kind: 'rightCircular' } | { kind: 'leftCircular' } | { kind: 'unpolarized' }
+
 export type AnalysisRequest =
   | { kind: 'spot'; rings: number }
   | { kind: 'rayFan'; samples: number }
@@ -34,6 +42,9 @@ export type AnalysisRequest =
   | { kind: 'mtfVsField'; frequencies: number[]; samples: number }
   | { kind: 'chromaticFocalShift'; samples: number }
   | { kind: 'footprint'; surface: number; rings: number }
+  | { kind: 'coating'; surface: number; wavelength: number; maxAngle: number; points: number }
+  | { kind: 'polarization'; field: number; wavelength: number; grid: number; input: PolInput }
+  | { kind: 'transmissionByField'; wavelength: number; grid: number; input: PolInput }
   | { kind: 'gaussianBeam'; wavelength: number; radius: number; waist: number }
 
 export interface AnalysisState<T> { result: T | null; error: string | null; ms: number | null; busy: boolean }

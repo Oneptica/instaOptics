@@ -3,6 +3,7 @@ import { WINDOWS } from '../../../shared/windows'
 import { FieldCurvesPanel, IlluminationPanel, MtfPanel, PsfPanel, RayFanPanel, SeidelPanel, SpotPanel, WavefrontPanel } from '../analysis/panels'
 import { LayoutView } from './LayoutView'
 import { BeamPanel } from './BeamPanel'
+import { CoatingPanel, PolarizationPanel, TransmissionPanel } from '../analysis/polarizationPanels'
 import { ChromaticFocalShiftPanel, FootprintPanel, MtfVsFieldPanel, ThroughFocusPanel } from '../analysis/morePanels'
 import { GlassPanel } from './GlassPanel'
 import { ImageSimPanel } from './ImageSimPanel'
@@ -34,6 +35,9 @@ const RENDER: Record<string, () => ReactNode> = {
   chromaticFocalShift: () => <ChromaticFocalShiftPanel />,
   footprint: () => <FootprintPanel />,
   glasses: () => <GlassPanel />,
+  coating: () => <CoatingPanel />,
+  polarization: () => <PolarizationPanel />,
+  transmission: () => <TransmissionPanel />,
   beam: () => <BeamPanel />,
   optimize: () => <OptimizePanel />,
   tolerance: () => <TolerancePanel />,

@@ -26,6 +26,7 @@ Try it in the browser: **[instaoptics.oneptica.com](https://instaoptics.oneptica
 - Spot diagram, ray fan, FFT MTF, through-focus MTF, MTF vs field, FFT PSF, wavefront map, field curvature and distortion, chromatic focal shift, Seidel aberrations, relative illumination, footprint
 - Export plots as PNG and data as CSV
 - Beam propagation (physical optics): Gaussian, super-Gaussian and flat-top beams through the system, on axis or along a field's chief ray, with side view, cross sections, beam radius and single-mode fibre coupling
+- Coatings and polarization: thin-film coatings per surface (MgF₂, quarter-wave layers, high reflectors, metals), reflectance/transmittance curves, and polarization ray tracing with transmission, diattenuation and retardance over the pupil
 - Image simulation on a test chart or any image
 - Tolerancing: sensitivity and Monte Carlo
 - Optimization (damped least squares)

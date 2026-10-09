@@ -11,12 +11,12 @@ import {
 
 const um = (mm: number | null | undefined) => mm === null || mm === undefined || !Number.isFinite(mm) ? '—' : (mm * 1000).toFixed(3)
 
-function useFieldOptions() {
+export function useFieldOptions() {
   const { doc } = useWorkbench()
   return doc.system.fields.map((field, i) => ({ value: i, label: `${i + 1}: ${fieldLabel(field, doc.system.fieldType)}` }))
 }
 
-function useWavelengthOptions() {
+export function useWavelengthOptions() {
   const { doc } = useWorkbench()
   return doc.system.wavelengths.map((wavelength, i) => ({ value: i, label: `${i + 1}: ${wavelength.toFixed(4)} µm` }))
 }

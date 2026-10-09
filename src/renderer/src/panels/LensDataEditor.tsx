@@ -7,12 +7,13 @@ import {
   type VariableKey, deleteSurface, toggleCoordinateBreak, insertSurface, isKnownMaterial, isVariable, parseNumber, setAspheric, setStop, toggleVariable, updateSurface,
 } from '../lensEdit'
 
-type ColumnKey = 'radius' | 'thickness' | 'material' | 'semiDiameter' | 'conic' | 'a0' | 'a1' | 'a2' | 'a3'
+type ColumnKey = 'radius' | 'thickness' | 'material' | 'coating' | 'semiDiameter' | 'conic' | 'a0' | 'a1' | 'a2' | 'a3'
 
 const COLUMNS: { key: ColumnKey; label: string; title: string }[] = [
   { key: 'radius', label: 'Radius', title: 'Radius of curvature (mm); Infinity for a flat surface' },
   { key: 'thickness', label: 'Thickness', title: 'Distance to the next surface (mm)' },
   { key: 'material', label: 'Material', title: 'Glass after the surface: catalog name, nd/vd model, or blank for air' },
+  { key: 'coating', label: 'Coating', title: 'Thin-film coating, e.g. MgF2, QW1.38@550, 1.38:99.6, HR@1064, AL; blank for none' },
   { key: 'semiDiameter', label: 'Clear Semi-Dia', title: 'Clear semi-aperture (mm); blank for automatic' },
   { key: 'conic', label: 'Conic', title: 'Conic constant k' },
   { key: 'a0', label: 'A4', title: 'Even asphere coefficient of r⁴' },
@@ -85,6 +86,7 @@ export function LensDataEditor() {
         const name = surface.material.trim().toUpperCase() === 'AIR' ? '' : surface.material
         return { text: name, editable: true, invalid: !isKnownMaterial(surface.material, glasses) }
       }
+      case 'coating': return { text: surface.coating ?? '', editable: true }
       case 'semiDiameter': {
         if (surface.semiDiameter !== undefined) return { text: formatFixed(surface.semiDiameter), editable: true, note: 'U' }
         const auto = overview?.automaticSemiDiameters[r - 1]
@@ -108,6 +110,7 @@ export function LensDataEditor() {
     if (key === 'radius') return surface.radius === 0 ? 'Infinity' : String(surface.radius)
     if (key === 'thickness') return String(surface.thickness)
     if (key === 'material') return cell(r, c).text
+    if (key === 'coating') return surface.coating ?? ''
     if (key === 'semiDiameter') return surface.semiDiameter === undefined ? '' : String(surface.semiDiameter)
     if (key === 'conic') return String(surface.conic ?? 0)
     return String(surface.aspheric?.[term(key)] ?? 0)
@@ -136,6 +139,8 @@ export function LensDataEditor() {
     if (key === 'material') {
       const material = text.trim().toUpperCase()
       patch = { material: material === '' ? 'AIR' : material }
+    } else if (key === 'coating') {
+      patch = { coating: text.trim() === '' ? undefined : text.trim() }
     } else if (key === 'semiDiameter') {
       const value = parseNumber(text)
       if (text.trim() === '') patch = { semiDiameter: undefined }
@@ -282,7 +287,7 @@ export function LensDataEditor() {
                     <div
                       key={column.key}
                       role="gridcell"
-                      className={`grid-cell ${column.key === 'material' ? 'text' : 'number'}${active ? ' active' : ''}${value.muted ? ' muted' : ''}${value.invalid ? ' invalid' : ''}`}
+                      className={`grid-cell ${column.key === 'material' || column.key === 'coating' ? 'text' : 'number'}${active ? ' active' : ''}${value.muted ? ' muted' : ''}${value.invalid ? ' invalid' : ''}`}
                       onMouseDown={() => setSelection({ row: r, col: c })}
                       onDoubleClick={() => { setSelection({ row: r, col: c }); if (value.editable) setEditing({ row: r, col: c, text: editText(r, c), invalid: false }) }}
                       title={value.invalid ? 'Unknown material' : undefined}

@@ -1,11 +1,13 @@
 //! instaOptics sequential optics core: lens model, glass catalog, paraxial optics and real ray tracing.
 
 pub mod analysis;
+pub mod coating;
 pub mod glass;
 pub mod image_sim;
 pub mod layout;
 pub mod optimize;
 pub mod paraxial;
+pub mod polarization;
 pub mod pop;
 pub mod surface;
 pub mod system;
@@ -65,6 +67,12 @@ pub enum AnalysisRequest {
     GaussianBeam { wavelength: usize, radius: f64, waist: f64 },
     /// Physical optics propagation of a beam through the system.
     Pop { settings: pop::PopSettings },
+    /// Reflectance and transmittance of one surface's coating.
+    Coating { surface: usize, wavelength: usize, max_angle: f64, points: usize },
+    /// Transmission, diattenuation and retardance over the pupil for one field.
+    Polarization { field: usize, wavelength: usize, grid: usize, input: polarization::PolInput },
+    /// Mean and minimum transmission for every field.
+    TransmissionByField { wavelength: usize, grid: usize, input: polarization::PolInput },
 }
 
 fn to_value<T: Serialize>(value: T) -> serde_json::Value {
@@ -106,6 +114,19 @@ pub fn analyze(system: &LensSystem, request: &AnalysisRequest) -> Result<serde_j
             to_value(analysis::footprint(&context, index, rings.clamp(2, 20), semi[index])?)
         }
         AnalysisRequest::GaussianBeam { wavelength, radius, waist } => to_value(pop::gaussian_beam(system, wavelength, radius, waist, 60)?),
+        AnalysisRequest::Coating { surface, wavelength, max_angle, points } => {
+            let lambda = *system.wavelengths.get(wavelength).ok_or_else(|| LensError(format!("No wavelength {}", wavelength + 1)))?;
+            to_value(polarization::coating_curves(system, surface, lambda, max_angle.clamp(1.0, 89.0), points.clamp(2, 400))?)
+        }
+        AnalysisRequest::Polarization { field, wavelength, grid, input } => {
+            let lambda = *system.wavelengths.get(wavelength).ok_or_else(|| LensError(format!("No wavelength {}", wavelength + 1)))?;
+            let angle = *system.fields.get(field).ok_or_else(|| LensError(format!("No field {}", field + 1)))?;
+            to_value(polarization::polarization_map(&context, angle, lambda, grid.clamp(5, 129), input)?)
+        }
+        AnalysisRequest::TransmissionByField { wavelength, grid, input } => {
+            let lambda = *system.wavelengths.get(wavelength).ok_or_else(|| LensError(format!("No wavelength {}", wavelength + 1)))?;
+            to_value(polarization::transmission_by_field(&context, lambda, grid.clamp(5, 65), input)?)
+        }
         AnalysisRequest::Pop { settings } => to_value(pop::simulate(system, &settings)?),
         AnalysisRequest::Layout3d { ring } => {
             let automatic = trace::automatic_semi_diameters(&context)?;

@@ -36,6 +36,10 @@ pub struct Surface {
     /// Glass perturbation of the medium after this surface (tolerancing).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub glass_offset: Option<GlassOffset>,
+    /// Thin-film coating, e.g. "MgF2@550", "1.38:99.6,2.1:60" (index:thickness in nm, incident side first) or a metal
+    /// ("AL", "M:0.96+6.69i"); see `coating::parse`. None is uncoated (Fresnel).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub coating: Option<String>,
     /// Makes this a coordinate break: it does not interact with rays but moves and rotates the coordinate system of
     /// every following surface.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -310,6 +314,11 @@ impl LensSystem {
         }
         for &wavelength in &self.wavelengths {
             self.medium_indices(wavelength)?;
+        }
+        for (i, surface) in self.surfaces.iter().enumerate() {
+            if let Some(text) = surface.coating.as_deref().map(str::trim).filter(|t| !t.is_empty()) {
+                crate::coating::parse(text, self.primary_wavelength()).map_err(|e| LensError(format!("Coating on surface {}: {e}", i + 1)))?;
+            }
         }
         Ok(())
     }
