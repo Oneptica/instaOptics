@@ -40,6 +40,9 @@ pub struct Surface {
     /// ("AL", "M:0.96+6.69i"); see `coating::parse`. None is uncoated (Fresnel).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub coating: Option<String>,
+    /// Computes the thickness (marginal ray height solve) or copies a parameter from another surface (pickup).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub solve: Option<crate::configs::Solve>,
     /// Makes this a coordinate break: it does not interact with rays but moves and rotates the coordinate system of
     /// every following surface.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -91,6 +94,67 @@ pub enum Objective {
     Spot,
     /// RMS wavefront error about each field and wavelength's mean (waves).
     Wavefront,
+    /// No image-quality term: only the operands and constraints.
+    None,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum OperandKind {
+    /// Effective focal length (mm).
+    Efl,
+    /// First vertex to image (mm).
+    TotalTrack,
+    /// Paraxial back focal length (mm).
+    BackFocus,
+    /// Paraxial image-space F/#.
+    FNumber,
+    /// Paraxial image height of the largest field (mm).
+    ImageHeight,
+    /// Chief ray angle at the image for a field (degrees).
+    ChiefRayAngle,
+    /// Real chief ray distortion for a field (%).
+    Distortion,
+    /// Thickness of a surface (mm).
+    Thickness,
+    /// Radius of a surface (mm).
+    Radius,
+    /// RMS spot radius for a field (mm).
+    SpotRadius,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Relation {
+    #[default]
+    Equal,
+    AtMost,
+    AtLeast,
+}
+
+fn one() -> f64 {
+    1.0
+}
+
+/// One line of the merit function: a quantity, how it should relate to the target, and its weight.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Operand {
+    pub kind: OperandKind,
+    #[serde(default)]
+    pub relation: Relation,
+    pub target: f64,
+    #[serde(default = "one")]
+    pub weight: f64,
+    /// Surface index for thickness and radius operands.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub surface: Option<usize>,
+    /// Field index for chief ray, distortion and spot operands; None means every field.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub field: Option<usize>,
+    /// Restricts the operand to one configuration; None means every configuration.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub config: Option<usize>,
 }
 
 /// Merit function settings and constraints for the optimizer.
@@ -119,6 +183,9 @@ pub struct OptimizationSettings {
     /// Minimum centre and edge air gap (mm).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub min_air: Option<f64>,
+    /// User-defined merit function lines, added to the objective and constraints above.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub operands: Vec<Operand>,
 }
 
 impl Surface {
@@ -205,6 +272,9 @@ pub struct LensSystem {
     /// Glasses defined in the system itself (from loaded catalogs); they take precedence over the built-in catalog.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub glasses: Vec<glass::GlassDef>,
+    /// Multi-configuration data: parameters that take a different value in each configuration.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub configs: Option<crate::configs::Configurations>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -320,6 +390,7 @@ impl LensSystem {
                 crate::coating::parse(text, self.primary_wavelength()).map_err(|e| LensError(format!("Coating on surface {}: {e}", i + 1)))?;
             }
         }
+        crate::configs::validate(self)?;
         Ok(())
     }
 }
@@ -345,6 +416,7 @@ fn visible(name: &str, stop_index: usize, entrance_pupil_diameter: f64, fields: 
         target_efl: None,
         optimization: OptimizationSettings::default(),
         glasses: Vec::new(),
+        configs: None,
     }
 }
 
@@ -394,6 +466,7 @@ pub fn aspheric_singlet() -> LensSystem {
         target_efl: None,
         optimization: OptimizationSettings::default(),
         glasses: Vec::new(),
+        configs: None,
     }
 }
 

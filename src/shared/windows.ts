@@ -19,6 +19,7 @@ export const WINDOWS: WindowInfo[] = [
   { id: 'seidel', title: 'Seidel Diagram', icon: 'graph', group: 'Aberrations' },
   { id: 'chromaticFocalShift', title: 'Chromatic Focal Shift', icon: 'color-mode', group: 'Aberrations' },
   { id: 'illumination', title: 'Relative Illumination', icon: 'lightbulb', group: 'Aberrations' },
+  { id: 'configs', title: 'Multi-Configuration', icon: 'versions', group: 'System' },
   { id: 'glasses', title: 'Glass Catalogs', icon: 'beaker', group: 'Materials' },
   { id: 'coating', title: 'Coating', icon: 'layers', group: 'Polarization' },
   { id: 'polarization', title: 'Polarization Maps', icon: 'symbol-misc', group: 'Polarization' },

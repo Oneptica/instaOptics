@@ -29,7 +29,8 @@ Try it in the browser: **[instaoptics.oneptica.com](https://instaoptics.oneptica
 - Coatings and polarization: thin-film coatings per surface (MgF₂, quarter-wave layers, high reflectors, metals), reflectance/transmittance curves, and polarization ray tracing with transmission, diattenuation and retardance over the pupil
 - Image simulation on a test chart or any image
 - Tolerancing: sensitivity and Monte Carlo
-- Optimization (damped least squares)
+- Optimization (damped least squares) with a merit function editor: operands for EFL, track, distortion, chief ray angle and more, per field and configuration
+- Solves (marginal ray height, pickups) and multi-configuration data
 - 2D and 3D layout
 - Zemax `.zmx` import and export
 

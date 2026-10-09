@@ -12,8 +12,30 @@ export interface Surface {
   decenter?: [number, number]
   tilt?: [number, number]
   variable?: SurfaceVariables // parameters the optimizer may change
+  /** Computes the thickness (marginal ray height) or copies a parameter from another surface (pickup). */
+  solve?: Solve
   /** Makes the surface a coordinate break: decenter (mm), then tilt about x, y, z (degrees) for all later surfaces. */
   coordinateBreak?: { decenter: [number, number]; tilt: [number, number, number] }
+}
+
+export type SolveParameter = 'radius' | 'thickness' | 'conic'
+export type Solve =
+  | { kind: 'marginalRayHeight'; height: number }
+  | { kind: 'pickup'; surface: number; parameter: SolveParameter; scale: number; offset: number }
+
+export type ConfigParameter = 'radius' | 'thickness' | 'conic' | 'material' | 'decenterX' | 'decenterY' | 'tiltX' | 'tiltY'
+export interface ConfigRow { surface: number; parameter: ConfigParameter; values: Array<number | string> }
+export interface Configurations { names: string[]; rows: ConfigRow[]; active: number }
+
+export type OperandKind = 'efl' | 'totalTrack' | 'backFocus' | 'fNumber' | 'imageHeight' | 'chiefRayAngle' | 'distortion' | 'thickness' | 'radius' | 'spotRadius'
+export interface Operand {
+  kind: OperandKind
+  relation?: 'equal' | 'atMost' | 'atLeast'
+  target: number
+  weight?: number
+  surface?: number
+  field?: number
+  config?: number
 }
 
 export type ApertureType = 'entrancePupilDiameter' | 'imageFNumber' | 'workingFNumber' | 'objectNa' | 'floatByStop'
@@ -22,7 +44,8 @@ export type FieldType = 'angle' | 'objectHeight' | 'imageHeight'
 export interface SurfaceVariables { radius?: boolean; thickness?: boolean; conic?: boolean; aspheric?: boolean[] }
 
 export interface OptimizationSettings {
-  objective?: 'spot' | 'wavefront'
+  objective?: 'spot' | 'wavefront' | 'none'
+  operands?: Operand[]
   rings?: number
   maxTotalTrack?: number
   minBackFocus?: number
@@ -33,6 +56,7 @@ export interface OptimizationSettings {
 }
 
 export interface LensSystem {
+  configs?: Configurations
   name: string
   objectDistance: number | null // null means infinity
   surfaces: Surface[]
@@ -90,6 +114,7 @@ export interface Overview {
   automaticSemiDiameters: number[]
   semiDiameters: number[]
   layout: Layout
+  resolvedSurfaces: Array<{ radius: number; thickness: number; conic: number; material: string }> // after configuration and solves
 }
 
 export interface GlassInfo { name: string; nd: number; vd: number; catalog?: string }

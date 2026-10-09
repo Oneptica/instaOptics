@@ -7,7 +7,9 @@ use serde::{Deserialize, Serialize};
 use crate::analysis::{OpdEvaluator, hexapolar};
 use crate::paraxial::paraxial_data;
 use crate::surface::sag;
-use crate::system::{LensSystem, Objective};
+use crate::configs::{self, Parameter};
+use crate::paraxial::{resolved_config, trace as paraxial_trace};
+use crate::system::{LensSystem, Objective, Operand, OperandKind, Relation};
 use crate::trace::{TraceContext, automatic_semi_diameters};
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -24,13 +26,13 @@ pub fn list_variables(system: &LensSystem) -> Vec<Variable> {
     let mut list = Vec::new();
     for (surface, s) in system.surfaces.iter().enumerate() {
         let Some(v) = &s.variable else { continue };
-        if v.radius {
+        if v.radius && !configs::is_locked(system, surface, Parameter::Radius) {
             list.push(Variable::Radius { surface });
         }
-        if v.thickness {
+        if v.thickness && !configs::is_locked(system, surface, Parameter::Thickness) {
             list.push(Variable::Thickness { surface });
         }
-        if v.conic {
+        if v.conic && !configs::is_locked(system, surface, Parameter::Conic) {
             list.push(Variable::Conic { surface });
         }
         for (term, &on) in v.aspheric.iter().enumerate() {
@@ -96,19 +98,106 @@ const CRA_WEIGHT: f64 = 0.1; // per degree above the chief ray angle limit
 
 /// Residuals whose root-sum-square is the merit: the image-quality objective plus focal length and constraint terms.
 pub fn residuals(system: &LensSystem) -> Vec<f64> {
-    let failed = vec![f64::INFINITY];
     if system.validate().is_err() {
-        return failed;
+        return vec![f64::INFINITY];
     }
-    let Ok(system) = &crate::paraxial::resolved(system) else { return failed };
-    let Ok(paraxial) = paraxial_data(system) else { return failed };
+    let mut out = Vec::new();
+    for configuration in 0..configs::configuration_count(system) {
+        match config_residuals(system, configuration) {
+            Some(part) => out.extend(part),
+            None => return vec![f64::INFINITY],
+        }
+    }
+    out
+}
+
+/// Real-ray quantities an operand may need, traced once per configuration.
+struct OperandContext<'a> {
+    system: &'a LensSystem,
+    paraxial: &'a crate::paraxial::ParaxialData,
+    context: &'a TraceContext<'a>,
+    indices: &'a [f64],
+    pupil: &'a [[f64; 2]],
+}
+
+/// The value of an operand's quantity for one field (or the system), or None when it cannot be evaluated.
+fn operand_quantity(c: &OperandContext, operand: &Operand, field: Option<usize>) -> Option<f64> {
+    let (system, paraxial) = (c.system, c.paraxial);
+    let primary = system.primary_wavelength();
+    let angle = field.and_then(|f| system.fields.get(f).copied());
+    Some(match operand.kind {
+        OperandKind::Efl => paraxial.efl,
+        OperandKind::TotalTrack => paraxial.total_track,
+        OperandKind::BackFocus => paraxial.bfl,
+        OperandKind::FNumber => paraxial.f_number,
+        OperandKind::ImageHeight => paraxial.image_height,
+        OperandKind::Thickness => system.surfaces.get(operand.surface?)?.thickness,
+        OperandKind::Radius => system.surfaces.get(operand.surface?)?.radius,
+        OperandKind::ChiefRayAngle => {
+            let chief = c.context.trace_ray(angle?, 0.0, 0.0, primary, c.indices);
+            if !chief.ok() { return None; }
+            chief.direction[2].abs().min(1.0).acos().to_degrees()
+        }
+        OperandKind::Distortion => {
+            let angle = angle?;
+            if angle == 0.0 { return Some(0.0); }
+            let slope = angle.to_radians().tan();
+            let last = system.last();
+            let chief = paraxial_trace(system, c.indices, -paraxial.entrance_pupil_z * slope, slope);
+            let reference = chief.heights[last] + chief.angles[last] * system.surfaces[last].thickness;
+            let real = c.context.trace_ray(angle, 0.0, 0.0, primary, c.indices);
+            if !real.ok() || reference == 0.0 { return None; }
+            100.0 * (real.end()[1] - reference) / reference
+        }
+        OperandKind::SpotRadius => {
+            let angle = angle?;
+            let hits: Vec<[f64; 2]> = c.pupil.iter().filter_map(|&[px, py]| {
+                let ray = c.context.trace_ray(angle, px, py, primary, c.indices);
+                ray.ok().then(|| [ray.end()[0], ray.end()[1]])
+            }).collect();
+            if hits.is_empty() { return None; }
+            let n = hits.len() as f64;
+            let (cx, cy) = (hits.iter().map(|h| h[0]).sum::<f64>() / n, hits.iter().map(|h| h[1]).sum::<f64>() / n);
+            (hits.iter().map(|h| (h[0] - cx).powi(2) + (h[1] - cy).powi(2)).sum::<f64>() / n).sqrt()
+        }
+    })
+}
+
+/// Residual scale for each kind so that typical errors are comparable to the image-quality terms.
+fn operand_scale(kind: OperandKind, target: f64) -> f64 {
+    let relative = |t: f64| 5.0 / t.abs().max(1e-6);
+    match kind {
+        OperandKind::Efl | OperandKind::FNumber => relative(target),
+        OperandKind::ImageHeight => relative(target),
+        OperandKind::TotalTrack | OperandKind::BackFocus | OperandKind::Thickness => PENALTY,
+        OperandKind::Radius => 1.0,
+        OperandKind::ChiefRayAngle => CRA_WEIGHT,
+        OperandKind::Distortion => 0.05,
+        OperandKind::SpotRadius => 1.0,
+    }
+}
+
+fn operand_fields(system: &LensSystem, operand: &Operand) -> Vec<Option<usize>> {
+    match operand.kind {
+        OperandKind::ChiefRayAngle | OperandKind::Distortion | OperandKind::SpotRadius => match operand.field {
+            Some(f) => vec![Some(f)],
+            None => (0..system.fields.len()).map(Some).collect(),
+        },
+        _ => vec![None],
+    }
+}
+
+/// Residuals of one configuration.
+fn config_residuals(system: &LensSystem, configuration: usize) -> Option<Vec<f64>> {
+    let Ok(system) = &resolved_config(system, configuration) else { return None };
+    let Ok(paraxial) = paraxial_data(system) else { return None };
     if !paraxial.efl.is_finite() || !paraxial.entrance_pupil_z.is_finite() {
-        return failed;
+        return None;
     }
     let settings = &system.optimization;
     let context = TraceContext::new(system, &paraxial);
     let pupil = hexapolar(settings.rings.unwrap_or(3).clamp(1, 12));
-    let Ok(indices) = system.wavelengths.iter().map(|&w| system.medium_indices(w)).collect::<Result<Vec<_>, _>>() else { return failed };
+    let Ok(indices) = system.wavelengths.iter().map(|&w| system.medium_indices(w)).collect::<Result<Vec<_>, _>>() else { return None };
     let weight = 1.0 / ((system.fields.len() * system.wavelengths.len() * pupil.len()) as f64).sqrt();
     let mut out = Vec::new();
 
@@ -124,6 +213,7 @@ pub fn residuals(system: &LensSystem) -> Vec<f64> {
                 }
             }
         }
+        Objective::None => {}
         Objective::Spot => {
             for &field in &system.fields {
                 let mut hits = Vec::with_capacity(pupil.len() * system.wavelengths.len());
@@ -164,7 +254,25 @@ pub fn residuals(system: &LensSystem) -> Vec<f64> {
         }
     }
 
-    let Ok(semi) = automatic_semi_diameters(&context) else { return failed };
+    if !settings.operands.is_empty() {
+        let primary_indices = &indices[system.primary_wavelength.min(indices.len() - 1)];
+        let operand_context = OperandContext { system, paraxial: &paraxial, context: &context, indices: primary_indices, pupil: &pupil };
+        for operand in settings.operands.iter().filter(|o| o.config.is_none_or(|c| c == configuration)) {
+            for field in operand_fields(system, operand) {
+                let scale = operand.weight * operand_scale(operand.kind, operand.target);
+                out.push(match operand_quantity(&operand_context, operand, field) {
+                    Some(value) if value.is_finite() => scale * match operand.relation {
+                        Relation::Equal => value - operand.target,
+                        Relation::AtMost => (value - operand.target).max(0.0),
+                        Relation::AtLeast => (operand.target - value).max(0.0),
+                    },
+                    _ => PENALTY * operand.weight.abs().max(1.0),
+                });
+            }
+        }
+    }
+
+    let Ok(semi) = automatic_semi_diameters(&context) else { return None };
     let (min_glass, min_edge, min_air) = (settings.min_glass_center.unwrap_or(0.5), settings.min_glass_edge.unwrap_or(0.3), settings.min_air.unwrap_or(0.0));
     for (i, surface) in system.surfaces.iter().enumerate() {
         let Some(next) = system.surfaces.get(i + 1) else {
@@ -186,7 +294,40 @@ pub fn residuals(system: &LensSystem) -> Vec<f64> {
         let edge_min = if glass { min_edge } else { min_air };
         out.push(if edge.is_finite() && edge < edge_min { PENALTY * (edge_min - edge) } else { 0.0 });
     }
-    out
+    Some(out)
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MeritReport {
+    pub merit: f64,
+    /// Current value of each operand in the active configuration; the field furthest from the target for
+    /// all-field operands; None when it cannot be evaluated or does not apply to the configuration.
+    pub values: Vec<Option<f64>>,
+}
+
+pub fn merit_report(system: &LensSystem) -> MeritReport {
+    let configuration = configs::active_configuration(system);
+    let mut values = vec![None; system.optimization.operands.len()];
+    if let Ok(resolved) = resolved_config(system, configuration) {
+        if let Ok(paraxial) = paraxial_data(&resolved) {
+            if let Ok(indices) = resolved.medium_indices(resolved.primary_wavelength()) {
+                let context = TraceContext::new(&resolved, &paraxial);
+                let pupil = hexapolar(resolved.optimization.rings.unwrap_or(3).clamp(1, 12));
+                let c = OperandContext { system: &resolved, paraxial: &paraxial, context: &context, indices: &indices, pupil: &pupil };
+                for (slot, operand) in values.iter_mut().zip(&resolved.optimization.operands) {
+                    if operand.config.is_some_and(|k| k != configuration) {
+                        continue;
+                    }
+                    *slot = operand_fields(&resolved, operand).into_iter()
+                        .filter_map(|f| operand_quantity(&c, operand, f))
+                        .filter(|v| v.is_finite())
+                        .max_by(|a, b| (a - operand.target).abs().total_cmp(&(b - operand.target).abs()));
+                }
+            }
+        }
+    }
+    MeritReport { merit: merit(system), values }
 }
 
 pub fn merit_of(residuals: &[f64]) -> f64 {

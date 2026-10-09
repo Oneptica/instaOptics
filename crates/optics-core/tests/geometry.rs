@@ -114,3 +114,28 @@ fn glasses_defined_in_the_system_take_part_in_tracing() {
     missing.surfaces[0].material = "NOT-LOADED".into();
     assert!(missing.validate().is_err());
 }
+
+#[test]
+fn operands_and_configurations_enter_the_merit() {
+    use optics_core::configs::{ConfigParameter, ConfigRow, ConfigValue, Configurations};
+    use optics_core::optimize::{merit, residuals};
+    use optics_core::system::{Objective, Operand, OperandKind, Relation};
+
+    let mut lens = cooke_triplet();
+    lens.optimization.objective = Objective::None;
+    assert!(merit(&lens) < 1e-9);
+    let efl = paraxial_data(&lens).unwrap().efl;
+    lens.optimization.operands = vec![Operand { kind: OperandKind::Efl, relation: Relation::Equal, target: efl * 1.1, weight: 1.0, surface: None, field: None, config: None }];
+    assert!(merit(&lens) > 0.1);
+    lens.optimization.operands[0].relation = Relation::AtMost;
+    assert!(merit(&lens) < 1e-9);
+    // Two configurations double the residuals; the operand restricted to the second adds one line there only.
+    lens.optimization.operands[0] = Operand { kind: OperandKind::Thickness, relation: Relation::Equal, target: 0.0, weight: 1.0, surface: Some(1), field: None, config: Some(1) };
+    let single = residuals(&lens).len();
+    lens.configs = Some(Configurations {
+        names: vec!["A".into(), "B".into()],
+        rows: vec![ConfigRow { surface: 1, parameter: ConfigParameter::Thickness, values: vec![ConfigValue::Number(6.0), ConfigValue::Number(7.0)] }],
+        active: 0,
+    });
+    assert_eq!(residuals(&lens).len(), 2 * single + 1);
+}

@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import type { LensSystem, OptimizationSettings } from '../../../shared/lens'
+import type { LensSystem, Operand, OperandKind, OptimizationSettings } from '../../../shared/lens'
 import type { OptimizeProgress, OptimizeResult } from '../../../shared/protocol'
 import { Select } from '../analysis/AnalysisFrame'
+import { type MeritReport, useAnalysis } from '../analysis/useAnalysis'
+import { configurationCount } from '../lensEdit'
 import { NumberField } from '../components/NumberField'
 import { useWorkbench } from '../document'
 import { formatFixed } from '../format'
@@ -11,6 +13,84 @@ import { LinePlot } from '../plots/LinePlot'
 interface Run { history: number[]; iteration: number; running: boolean; result: OptimizeResult | null; error: string | null; ms: number }
 
 const ASPHERE = ['A4', 'A6', 'A8', 'A10']
+
+const OPERANDS: Array<{ value: OperandKind; label: string; unit: string; needs?: 'surface' | 'field' }> = [
+  { value: 'efl', label: 'EFL', unit: 'mm' },
+  { value: 'totalTrack', label: 'Total track', unit: 'mm' },
+  { value: 'backFocus', label: 'Back focus', unit: 'mm' },
+  { value: 'fNumber', label: 'F/#', unit: '' },
+  { value: 'imageHeight', label: 'Image height', unit: 'mm' },
+  { value: 'chiefRayAngle', label: 'Chief ray angle', unit: 'deg', needs: 'field' },
+  { value: 'distortion', label: 'Distortion', unit: '%', needs: 'field' },
+  { value: 'spotRadius', label: 'RMS spot radius', unit: 'mm', needs: 'field' },
+  { value: 'thickness', label: 'Thickness', unit: 'mm', needs: 'surface' },
+  { value: 'radius', label: 'Radius', unit: 'mm', needs: 'surface' },
+]
+
+function OperandTable({ system, report, onChange }: { system: LensSystem; report: MeritReport | null; onChange: (operands: Operand[]) => void }) {
+  const operands = system.optimization?.operands ?? []
+  const configCount = configurationCount(system)
+  const update = (i: number, patch: Partial<Operand>) => onChange(operands.map((o, k) => {
+    if (k !== i) return o
+    const next = { ...o, ...patch }
+    for (const key of Object.keys(next) as (keyof Operand)[]) if (next[key] === undefined) delete next[key]
+    return next
+  }))
+  return (
+    <>
+      <table className="data-table mono operand-table">
+        <thead><tr><th>#</th><th className="left">Type</th><th>Surf / Field</th><th className="left">Relation</th><th>Target</th><th>Weight</th>{configCount > 1 && <th>Config</th>}<th>Value</th><th /></tr></thead>
+        <tbody>
+          {operands.map((o, i) => {
+            const info = OPERANDS.find(x => x.value === o.kind)!
+            const value = report?.values[i]
+            return (
+              <tr key={i}>
+                <td>{i + 1}</td>
+                <td className="left">
+                  <select aria-label="Operand type" value={o.kind} onChange={e => { const kind = e.target.value as OperandKind; const needs = OPERANDS.find(x => x.value === kind)?.needs; update(i, { kind, surface: needs === 'surface' ? (o.surface ?? 0) : undefined, field: needs === 'field' ? o.field : undefined }) }}>
+                    {OPERANDS.map(x => <option key={x.value} value={x.value}>{x.label}</option>)}
+                  </select>
+                </td>
+                <td>
+                  {info.needs === 'surface' && (
+                    <select aria-label="Surface" value={o.surface ?? 0} onChange={e => update(i, { surface: Number(e.target.value) })}>
+                      {system.surfaces.map((_, k) => <option key={k} value={k}>{k + 1}</option>)}
+                    </select>
+                  )}
+                  {info.needs === 'field' && (
+                    <select aria-label="Field" value={o.field ?? -1} onChange={e => update(i, { field: Number(e.target.value) < 0 ? undefined : Number(e.target.value) })}>
+                      <option value={-1}>All</option>
+                      {system.fields.map((_, k) => <option key={k} value={k}>{k + 1}</option>)}
+                    </select>
+                  )}
+                </td>
+                <td className="left">
+                  <select aria-label="Relation" value={o.relation ?? 'equal'} onChange={e => update(i, { relation: e.target.value === 'equal' ? undefined : e.target.value as Operand['relation'] })}>
+                    <option value="equal">=</option><option value="atMost">≤</option><option value="atLeast">≥</option>
+                  </select>
+                </td>
+                <td><NumberField ariaLabel="Operand target" value={o.target} onCommit={v => v !== null && update(i, { target: v })} /></td>
+                <td><NumberField ariaLabel="Operand weight" min={0} value={o.weight ?? 1} onCommit={v => v !== null && update(i, { weight: v === 1 ? undefined : v })} /></td>
+                {configCount > 1 && (
+                  <td>
+                    <select aria-label="Configuration" value={o.config ?? -1} onChange={e => update(i, { config: Number(e.target.value) < 0 ? undefined : Number(e.target.value) })}>
+                      <option value={-1}>All</option>
+                      {system.configs?.names.map((name, k) => <option key={k} value={k}>{name}</option>)}
+                    </select>
+                  </td>
+                )}
+                <td>{value === null || value === undefined ? '—' : `${formatFixed(value)} ${info.unit}`}</td>
+                <td><button className="tool" title="Remove operand" onClick={() => onChange(operands.filter((_, k) => k !== i))}><i className="codicon codicon-trash" /></button></td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+      <p className="muted hint">{operands.length ? 'Operands add to the criterion and constraints above. Targets are held with the weight shown; ≤ and ≥ only count when violated.' : 'Add operands to target the focal length, track, distortion, chief ray angle or a surface value, per field and configuration.'}</p>
+    </>
+  )
+}
 
 function variableList(system: LensSystem) {
   const rows: Array<{ surface: number; name: string; value: string }> = []
@@ -26,7 +106,7 @@ function variableList(system: LensSystem) {
 }
 
 export function OptimizePanel() {
-  const { doc, dispatch, edit } = useWorkbench()
+  const { doc, dispatch, edit, engine } = useWorkbench()
   const system = doc.system
   const settings = system.optimization ?? {}
   const [iterations, setIterations] = useState(50)
@@ -40,6 +120,8 @@ export function OptimizePanel() {
     return { ...s, optimization: next }
   })
   const variables = variableList(system)
+  const report = useAnalysis<MeritReport>({ kind: 'meritFunction' })
+  const engineEfl = engine.overview?.paraxial.efl
 
   function start() {
     const base = system
@@ -92,9 +174,10 @@ export function OptimizePanel() {
           <h3>Merit Function</h3>
           <div className="form-grid">
             <label>Criterion</label>
-            <select value={settings.objective ?? 'spot'} onChange={e => setSetting({ objective: e.target.value as 'spot' | 'wavefront' })}>
+            <select value={settings.objective ?? 'spot'} onChange={e => setSetting({ objective: e.target.value as 'spot' | 'wavefront' | 'none' })}>
               <option value="spot">RMS spot radius (centroid)</option>
               <option value="wavefront">RMS wavefront error</option>
+              <option value="none">None (operands only)</option>
             </select>
             <span />
             <label>Pupil rings</label>
@@ -127,6 +210,10 @@ export function OptimizePanel() {
             <NumberField optional ariaLabel="Minimum air gap" placeholder="0" value={settings.minAir ?? null} onCommit={v => setSetting({ minAir: v ?? undefined })} />
             <span className="unit">mm</span>
           </div>
+          <h3>Operands ({settings.operands?.length ?? 0})
+            <button className="tool" title="Add an operand" onClick={() => setSetting({ operands: [...(settings.operands ?? []), { kind: 'efl', target: engineEfl ?? 0 }] })}><i className="codicon codicon-add" /></button>
+          </h3>
+          <OperandTable system={system} report={report.result} onChange={operands => setSetting({ operands: operands.length ? operands : undefined })} />
           <h3>Variables ({variables.length})</h3>
           {variables.length ? (
             <table className="data-table mono">

@@ -492,3 +492,13 @@ button, input, select { font: inherit; color: inherit; }
 .glass-table tr:hover td { background: var(--bg-hover); }
 .glass-table tr.picked td { background: var(--bg-selection); }
 .panel-toolbar .search { width: 180px; text-align: left; }
+
+/* Multi-configuration table and merit function operands */
+.table-scroll { flex: 1; overflow: auto; }
+.config-table th.active, .config-table td.active { background: color-mix(in srgb, var(--focus) 12%, transparent); }
+.config-table .field-input { width: 90px; }
+.config-table .name-input { width: 80px; text-align: right; }
+.config-table .link-button { background: none; border: 0; color: var(--text-muted); cursor: pointer; padding: 0 4px; }
+.data-table td.left, .data-table th.left { text-align: left; }
+.operand-table .field-input { width: 64px; }
+.operand-table select { max-width: 120px; }

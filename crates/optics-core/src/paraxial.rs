@@ -100,6 +100,22 @@ pub fn paraxial_data(system: &LensSystem) -> Result<ParaxialData, LensError> {
 /// degrees, which is what the tracer works with. Paraxial optics is linear in the pupil size and in tan(field), so
 /// each conversion is one rescaling of a trial value.
 pub fn resolved(system: &LensSystem) -> Result<LensSystem, LensError> {
+    resolved_config(system, crate::configs::active_configuration(system))
+}
+
+/// `resolved` for one configuration: its values are applied, then solves and pickups, then the aperture and fields.
+pub fn resolved_config(system: &LensSystem, configuration: usize) -> Result<LensSystem, LensError> {
+    let mut staged = crate::configs::apply_configuration(system, configuration);
+    let solved = crate::configs::has_solves(&staged);
+    if solved {
+        staged = crate::configs::apply_solves(&staged)?;
+    }
+    let out = resolve_aperture_and_fields(&staged)?;
+    // Heights in a solve are relative to the final pupil size.
+    if solved && out.entrance_pupil_diameter != staged.entrance_pupil_diameter { crate::configs::apply_solves(&out) } else { Ok(out) }
+}
+
+fn resolve_aperture_and_fields(system: &LensSystem) -> Result<LensSystem, LensError> {
     if system.aperture_type == ApertureType::EntrancePupilDiameter && system.field_type == FieldType::Angle {
         return Ok(system.clone());
     }

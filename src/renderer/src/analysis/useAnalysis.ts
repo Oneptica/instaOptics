@@ -26,6 +26,7 @@ export interface PolarizationMap {
   meanTransmission: N; minTransmission: N; maxDiattenuation: number; rmsRetardance: N; surfaceTransmission: number[]
 }
 export interface FieldTransmission { field: number; mean: N; min: N; maxDiattenuation: number; rmsRetardance: N }
+export interface MeritReport { merit: N; values: N[] }
 export type PolInput = { kind: 'linear'; angle: number } | { kind: 'rightCircular' } | { kind: 'leftCircular' } | { kind: 'unpolarized' }
 
 export type AnalysisRequest =
@@ -42,6 +43,7 @@ export type AnalysisRequest =
   | { kind: 'mtfVsField'; frequencies: number[]; samples: number }
   | { kind: 'chromaticFocalShift'; samples: number }
   | { kind: 'footprint'; surface: number; rings: number }
+  | { kind: 'meritFunction' }
   | { kind: 'coating'; surface: number; wavelength: number; maxAngle: number; points: number }
   | { kind: 'polarization'; field: number; wavelength: number; grid: number; input: PolInput }
   | { kind: 'transmissionByField'; wavelength: number; grid: number; input: PolInput }

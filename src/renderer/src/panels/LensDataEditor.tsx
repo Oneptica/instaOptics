@@ -4,16 +4,17 @@ import type { LensSystem } from '../../../shared/lens'
 import { useWorkbench } from '../document'
 import { formatFixed } from '../format'
 import {
-  type VariableKey, deleteSurface, toggleCoordinateBreak, insertSurface, isKnownMaterial, isVariable, parseNumber, setAspheric, setStop, toggleVariable, updateSurface,
+  type VariableKey, configRowFor, deleteSurface, formatSolve, parseSolve, setConfigValue, solvedParameter, activeConfiguration, toggleCoordinateBreak, insertSurface, isKnownMaterial, isVariable, parseNumber, setAspheric, setStop, toggleVariable, updateSurface,
 } from '../lensEdit'
 
-type ColumnKey = 'radius' | 'thickness' | 'material' | 'coating' | 'semiDiameter' | 'conic' | 'a0' | 'a1' | 'a2' | 'a3'
+type ColumnKey = 'radius' | 'thickness' | 'material' | 'coating' | 'solve' | 'semiDiameter' | 'conic' | 'a0' | 'a1' | 'a2' | 'a3'
 
 const COLUMNS: { key: ColumnKey; label: string; title: string }[] = [
   { key: 'radius', label: 'Radius', title: 'Radius of curvature (mm); Infinity for a flat surface' },
   { key: 'thickness', label: 'Thickness', title: 'Distance to the next surface (mm)' },
   { key: 'material', label: 'Material', title: 'Glass after the surface: catalog name, nd/vd model, or blank for air' },
   { key: 'coating', label: 'Coating', title: 'Thin-film coating, e.g. MgF2, QW1.38@550, 1.38:99.6, HR@1064, AL; blank for none' },
+  { key: 'solve', label: 'Solve', title: 'M [height]: thickness from the marginal ray height (blank height 0 focuses the image). Pr1 [scale] [offset]: copy the radius (r), thickness (t) or conic (k) of surface 1' },
   { key: 'semiDiameter', label: 'Clear Semi-Dia', title: 'Clear semi-aperture (mm); blank for automatic' },
   { key: 'conic', label: 'Conic', title: 'Conic constant k' },
   { key: 'a0', label: 'A4', title: 'Even asphere coefficient of r⁴' },
@@ -57,6 +58,13 @@ export function LensDataEditor() {
   useEffect(() => { if (editing) inputRef.current?.focus() }, [editing?.row, editing?.col])
   useEffect(() => { setSelectedSurface(surfaceIndex) }, [surfaceIndex])
 
+  /** Surface values after the active configuration and solves, as the engine sees them. */
+  function resolvedValues(index: number) {
+    const s = system.surfaces[index]
+    const engineSide = overview?.resolvedSurfaces.length === n ? overview.resolvedSurfaces[index] : undefined
+    return engineSide ?? { radius: s.radius, thickness: s.thickness, conic: s.conic ?? 0, material: s.material }
+  }
+
   function cell(r: number, c: number): Cell {
     const key = COLUMNS[c].key
     if (r === 0) {
@@ -78,13 +86,18 @@ export function LensDataEditor() {
       const param = CB_COLUMNS[key]
       return param ? { text: formatFixed(param.read(surface.coordinateBreak)), editable: true } : { text: '', editable: false, muted: true }
     }
-    const variable = VARIABLE_KEYS.has(key) && isVariable(surface, key as VariableKey)
+    const resolved = resolvedValues(r - 1)
+    const locked = solvedParameter(surface.solve) === key
+    const controlled = (key === 'radius' || key === 'thickness' || key === 'conic' || key === 'material') && configRowFor(system, r - 1, key) !== undefined
+    const note = locked ? 'S' : controlled ? 'M' : undefined
+    const variable = VARIABLE_KEYS.has(key) && isVariable(surface, key as VariableKey) && !locked && !controlled
     switch (key) {
-      case 'radius': return { text: surface.radius === 0 ? 'Infinity' : formatFixed(surface.radius), editable: true, variable }
-      case 'thickness': return { text: formatFixed(surface.thickness), editable: true, variable }
+      case 'radius': return { text: resolved.radius === 0 ? 'Infinity' : formatFixed(resolved.radius), editable: !locked, variable, note }
+      case 'thickness': return { text: formatFixed(resolved.thickness), editable: !locked, variable, note }
+      case 'solve': return { text: formatSolve(surface.solve), editable: true }
       case 'material': {
-        const name = surface.material.trim().toUpperCase() === 'AIR' ? '' : surface.material
-        return { text: name, editable: true, invalid: !isKnownMaterial(surface.material, glasses) }
+        const name = resolved.material.trim().toUpperCase() === 'AIR' ? '' : resolved.material
+        return { text: name, editable: true, invalid: !isKnownMaterial(resolved.material, glasses), note }
       }
       case 'coating': return { text: surface.coating ?? '', editable: true }
       case 'semiDiameter': {
@@ -92,7 +105,7 @@ export function LensDataEditor() {
         const auto = overview?.automaticSemiDiameters[r - 1]
         return { text: auto === undefined ? '' : formatFixed(auto), editable: true }
       }
-      case 'conic': return { text: formatFixed(surface.conic ?? 0), editable: true, variable }
+      case 'conic': return { text: formatFixed(resolved.conic), editable: !locked, variable, note }
       default: {
         const value = surface.aspheric?.[term(key)] ?? 0
         return { text: formatCoefficient(value), editable: true, variable, muted: value === 0 && !variable }
@@ -107,12 +120,13 @@ export function LensDataEditor() {
     const surface = system.surfaces[r - 1]
     const param = surface.coordinateBreak && CB_COLUMNS[key]
     if (param && surface.coordinateBreak) return String(param.read(surface.coordinateBreak))
-    if (key === 'radius') return surface.radius === 0 ? 'Infinity' : String(surface.radius)
-    if (key === 'thickness') return String(surface.thickness)
+    if (key === 'solve') return formatSolve(surface.solve)
+    if (key === 'radius') return resolvedValues(r - 1).radius === 0 ? 'Infinity' : String(resolvedValues(r - 1).radius)
+    if (key === 'thickness') return String(resolvedValues(r - 1).thickness)
     if (key === 'material') return cell(r, c).text
     if (key === 'coating') return surface.coating ?? ''
     if (key === 'semiDiameter') return surface.semiDiameter === undefined ? '' : String(surface.semiDiameter)
-    if (key === 'conic') return String(surface.conic ?? 0)
+    if (key === 'conic') return String(resolvedValues(r - 1).conic)
     return String(surface.aspheric?.[term(key)] ?? 0)
   }
 
@@ -134,6 +148,22 @@ export function LensDataEditor() {
       if (value === null || !Number.isFinite(value)) return false
       edit(s => updateSurface(s, index, { coordinateBreak: param.write(cb, value) }))
       return true
+    }
+    if (key === 'solve') {
+      const solve = parseSolve(text, n)
+      if (solve === null || (solve?.kind === 'pickup' && solve.surface === index)) return false
+      edit(s => updateSurface(s, index, { solve }))
+      return true
+    }
+    // A parameter in the configuration table is edited in the active configuration.
+    if (key === 'radius' || key === 'thickness' || key === 'conic' || key === 'material') {
+      const configRow = system.configs?.rows.findIndex(row => row.surface === index && row.parameter === key) ?? -1
+      if (configRow >= 0) {
+        const value = key === 'material' ? (text.trim().toUpperCase() || 'AIR') : parseNumber(text)
+        if (value === null || (typeof value === 'number' && !Number.isFinite(value) && !(key === 'radius' && Math.abs(value) === Infinity))) return false
+        edit(s => setConfigValue(s, configRow, activeConfiguration(s), key === 'radius' && typeof value === 'number' && !Number.isFinite(value) ? 0 : value))
+        return true
+      }
     }
     let patch: Partial<LensSystem['surfaces'][number]>
     if (key === 'material') {
@@ -287,13 +317,13 @@ export function LensDataEditor() {
                     <div
                       key={column.key}
                       role="gridcell"
-                      className={`grid-cell ${column.key === 'material' || column.key === 'coating' ? 'text' : 'number'}${active ? ' active' : ''}${value.muted ? ' muted' : ''}${value.invalid ? ' invalid' : ''}`}
+                      className={`grid-cell ${column.key === 'material' || column.key === 'coating' || column.key === 'solve' ? 'text' : 'number'}${active ? ' active' : ''}${value.muted ? ' muted' : ''}${value.invalid ? ' invalid' : ''}`}
                       onMouseDown={() => setSelection({ row: r, col: c })}
                       onDoubleClick={() => { setSelection({ row: r, col: c }); if (value.editable) setEditing({ row: r, col: c, text: editText(r, c), invalid: false }) }}
                       title={value.invalid ? 'Unknown material' : undefined}
                     >
                       {value.text}
-                      {value.note && <span className="cell-note" title="Fixed by the user">{value.note}</span>}
+                      {value.note && <span className="cell-note" title={{ S: 'Set by a solve', M: 'Set by the configuration table; edits change the active configuration' }[value.note] ?? 'Fixed by the user'}>{value.note}</span>}
                       {r >= 1 && r <= n && VARIABLE_KEYS.has(column.key) && !system.surfaces[r - 1].coordinateBreak && (
                         <span
                           className={`solve${value.variable ? ' on' : ''}`}

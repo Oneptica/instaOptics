@@ -2,6 +2,7 @@
 
 pub mod analysis;
 pub mod coating;
+pub mod configs;
 pub mod glass;
 pub mod image_sim;
 pub mod layout;
@@ -33,6 +34,17 @@ pub struct Overview {
     pub automatic_semi_diameters: Vec<f64>,
     pub semi_diameters: Vec<f64>,
     pub layout: layout::Layout,
+    /// Surface values after the active configuration, solves and pickups.
+    pub resolved_surfaces: Vec<ResolvedSurface>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResolvedSurface {
+    pub radius: f64,
+    pub thickness: f64,
+    pub conic: f64,
+    pub material: String,
 }
 
 pub fn overview(system: &LensSystem, rays_per_field: usize) -> Result<Overview, LensError> {
@@ -43,7 +55,8 @@ pub fn overview(system: &LensSystem, rays_per_field: usize) -> Result<Overview, 
     let automatic_semi_diameters = trace::automatic_semi_diameters(&context)?;
     let semi_diameters = trace::effective_semi_diameters(system, &automatic_semi_diameters);
     let layout = layout::layout(&context, &semi_diameters, rays_per_field)?;
-    Ok(Overview { paraxial, entrance_pupil_diameter: system.entrance_pupil_diameter, field_angles: system.fields.clone(), automatic_semi_diameters, semi_diameters, layout })
+    let resolved_surfaces = system.surfaces.iter().map(|s| ResolvedSurface { radius: s.radius, thickness: s.thickness, conic: s.conic, material: s.material.clone() }).collect();
+    Ok(Overview { resolved_surfaces, paraxial, entrance_pupil_diameter: system.entrance_pupil_diameter, field_angles: system.fields.clone(), automatic_semi_diameters, semi_diameters, layout })
 }
 
 /// One analysis window's request. Field and wavelength are indices into the system's lists.
@@ -67,6 +80,8 @@ pub enum AnalysisRequest {
     GaussianBeam { wavelength: usize, radius: f64, waist: f64 },
     /// Physical optics propagation of a beam through the system.
     Pop { settings: pop::PopSettings },
+    /// Current merit and the value of every operand.
+    MeritFunction,
     /// Reflectance and transmittance of one surface's coating.
     Coating { surface: usize, wavelength: usize, max_angle: f64, points: usize },
     /// Transmission, diattenuation and retardance over the pupil for one field.
@@ -114,6 +129,7 @@ pub fn analyze(system: &LensSystem, request: &AnalysisRequest) -> Result<serde_j
             to_value(analysis::footprint(&context, index, rings.clamp(2, 20), semi[index])?)
         }
         AnalysisRequest::GaussianBeam { wavelength, radius, waist } => to_value(pop::gaussian_beam(system, wavelength, radius, waist, 60)?),
+        AnalysisRequest::MeritFunction => to_value(optimize::merit_report(system)),
         AnalysisRequest::Coating { surface, wavelength, max_angle, points } => {
             let lambda = *system.wavelengths.get(wavelength).ok_or_else(|| LensError(format!("No wavelength {}", wavelength + 1)))?;
             to_value(polarization::coating_curves(system, surface, lambda, max_angle.clamp(1.0, 89.0), points.clamp(2, 400))?)

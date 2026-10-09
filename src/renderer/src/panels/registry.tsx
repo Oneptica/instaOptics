@@ -4,6 +4,7 @@ import { FieldCurvesPanel, IlluminationPanel, MtfPanel, PsfPanel, RayFanPanel, S
 import { LayoutView } from './LayoutView'
 import { BeamPanel } from './BeamPanel'
 import { CoatingPanel, PolarizationPanel, TransmissionPanel } from '../analysis/polarizationPanels'
+import { ConfigPanel } from './ConfigPanel'
 import { ChromaticFocalShiftPanel, FootprintPanel, MtfVsFieldPanel, ThroughFocusPanel } from '../analysis/morePanels'
 import { GlassPanel } from './GlassPanel'
 import { ImageSimPanel } from './ImageSimPanel'
@@ -34,6 +35,7 @@ const RENDER: Record<string, () => ReactNode> = {
   mtfVsField: () => <MtfVsFieldPanel />,
   chromaticFocalShift: () => <ChromaticFocalShiftPanel />,
   footprint: () => <FootprintPanel />,
+  configs: () => <ConfigPanel />,
   glasses: () => <GlassPanel />,
   coating: () => <CoatingPanel />,
   polarization: () => <PolarizationPanel />,
