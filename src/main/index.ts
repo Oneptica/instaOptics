@@ -40,7 +40,7 @@ function setSoftwareRendering(enabled: boolean) {
 const timings: string[] = []
 function mark(label: string) {
   timings.push(`${String(Math.round(Date.now() - process.getCreationTime()!)).padStart(6)} ms  ${label}`)
-  if (label === 'first window shown' || timings.length > 20) {
+  if (label === 'first paint' || timings.length > 20) {
     try { writeFileSync(join(app.getPath('userData'), 'startup-timing.log'), `${app.getVersion()} ${new Date().toISOString()}\n${timings.join('\n')}\n`) } catch { /* diagnostics only */ }
   }
 }
@@ -49,6 +49,8 @@ mark('main process script loaded')
 const FILE_FILTERS = [{ name: 'instaOptics lens', extensions: ['iol'] }, { name: 'JSON', extensions: ['json'] }]
 
 let compute: UtilityProcess | null = null
+// Windows already handed a port to the current compute process (the page can finish loading before the engine starts).
+let connected = new WeakSet<BrowserWindow>()
 let quitting = false
 const dirtyWindows = new Set<number>()
 
@@ -59,7 +61,11 @@ function nativeModulePath() {
 /** Starts the compute process (restarting it if it dies) and reconnects every open window. */
 function startCompute() {
   compute = utilityProcess.fork(join(__dirname, 'compute.js'), [nativeModulePath()], { serviceName: 'instaOptics engine' })
-  compute.once('spawn', () => mark('engine process started'))
+  connected = new WeakSet()
+  compute.once('spawn', () => {
+    mark('engine process started')
+    for (const window of BrowserWindow.getAllWindows()) connectEngine(window)
+  })
   compute.on('exit', code => {
     compute = null
     if (quitting) return
@@ -71,7 +77,8 @@ function startCompute() {
 
 /** Gives the window's renderer a direct MessagePort to the compute process. */
 function connectEngine(window: BrowserWindow) {
-  if (!compute) return
+  if (!compute || connected.has(window)) return
+  connected.add(window)
   const { port1, port2 } = new MessageChannelMain()
   compute.postMessage({ type: 'connect' }, [port1])
   window.webContents.postMessage('engine:port', null, [port2])
@@ -87,7 +94,8 @@ function createWindow() {
     height: 900,
     minWidth: 900,
     minHeight: 560,
-    show: false,
+    // Shown at once with the theme's background: on machines that scan every new process the page can take seconds.
+    show: true,
     title: 'instaOptics',
     // Packaged builds take their icon from electron-builder; this covers development runs on Linux and Windows.
     icon: app.isPackaged ? undefined : join(app.getAppPath(), 'build', 'icon.png'),
@@ -99,10 +107,12 @@ function createWindow() {
       : { titleBarOverlay: { color: '#181818', symbolColor: '#cccccc', height: 34 } }),
     webPreferences: { preload: join(__dirname, '../preload/index.js'), sandbox: true, contextIsolation: true },
   })
-  window.once('ready-to-show', () => { mark('first window shown'); window.show() })
+  mark('window created')
+  window.once('ready-to-show', () => mark('first paint'))
   window.webContents.once('dom-ready', () => mark('page DOM ready'))
   window.webContents.once('did-finish-load', () => mark('page loaded'))
-  window.webContents.on('did-finish-load', () => connectEngine(window))
+  // A reloaded page needs a new port.
+  window.webContents.on('did-finish-load', () => { connected.delete(window); connectEngine(window) })
   window.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('https://')) void shell.openExternal(url)
     return { action: 'deny' }
@@ -249,10 +259,11 @@ ipcMain.handle('file:basename', (_event, path: string) => basename(path))
 app.whenReady().then(() => {
   mark('app ready')
   app.setName('instaOptics')
-  startCompute()
   buildMenu(sendMenu, () => createWindow(), { softwareRendering: !!startup.softwareRendering, setSoftwareRendering, scale: startup.scale ?? 0, setScale: scale => saveStartupAndRestart({ scale }) }, () => checkForUpdates(true))
   setupUpdater()
   createWindow()
+  // The window goes first so its process starts without waiting for the engine process.
+  startCompute()
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow() })
 })
 
