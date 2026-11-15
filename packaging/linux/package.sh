@@ -32,8 +32,8 @@ tar -C "$WORK/tar" -czf "$DIST/$BASENAME.tar.gz" "$BASENAME"
 echo "wrote $DIST/$BASENAME.tar.gz"
 
 if command -v nfpm >/dev/null; then
-  export VERSION NFPM_ARCH="$DEB_ARCH" STAGE
-  (cd "$ROOT" && nfpm package -f "$HERE/nfpm.yaml" -p deb -t "$DIST/$BASENAME.deb")
+  sed -e "s|\${NFPM_ARCH}|$DEB_ARCH|g" -e "s|\${VERSION}|$VERSION|g" -e "s|\${STAGE}|$STAGE|g" "$HERE/nfpm.yaml" > "$WORK/nfpm.yaml"
+  (cd "$ROOT" && nfpm package -f "$WORK/nfpm.yaml" -p deb -t "$DIST/$BASENAME.deb")
 else
   echo "nfpm not found, so no .deb (https://nfpm.goreleaser.com/install/)" >&2
 fi
