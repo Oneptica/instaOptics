@@ -1,0 +1,21 @@
+[package]
+name = "instaoptics"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "instaOptics: free and open-source optical simulation software"
+
+[[bin]]
+name = "instaoptics"
+path = "src/main.rs"
+
+[dependencies]
+instaoptics-ui-egui.workspace = true
+eframe = { workspace = true, features = ["wgpu", "accesskit", "wayland", "x11", "default_fonts"] }
+egui.workspace = true
+clap.workspace = true
+log.workspace = true
+image.workspace = true
+
+[lints]
+workspace = true

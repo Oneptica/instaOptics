@@ -1,0 +1,15 @@
+[package]
+name = "instaoptics-mcp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "instaOptics MCP server (JSON-RPC 2.0 over stdio) on a headless session or bridged to the running app"
+
+[dependencies]
+instaoptics-engine.workspace = true
+craft-jsonrpc.workspace = true
+craft-mcp.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

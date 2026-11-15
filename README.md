@@ -1,24 +1,45 @@
-<img src="build/icon.png" width="72" alt="">
+<p align="center">
+  <img src="assets/hicolor/256x256/apps/com.oneptica.instaoptics.png" width="96" height="96" alt="instaOptics" />
+</p>
 
-# instaOptics
+<h1 align="center">instaOptics</h1>
 
-Free and open-source optical simulation software.
+<p align="center">
+  <strong>Free and open-source optical simulation software, written in pure Rust.</strong><br />
+  Sequential lens design and analysis: edit the lens and every analysis follows. Run it on the desktop, script it from the command line, or let AI agents work on the lens through the built-in MCP server.
+</p>
 
-Try it in the browser: **[instaoptics.oneptica.com](https://instaoptics.oneptica.com)**
+<div align="center">
 
-[![CI](https://img.shields.io/github/actions/workflow/status/Oneptica/instaOptics/ci.yml?branch=main&style=flat-square&logo=githubactions&logoColor=white&label=CI)](https://github.com/Oneptica/instaOptics/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/Oneptica/instaOptics?style=flat-square&logo=github&label=release)](https://github.com/Oneptica/instaOptics/releases/latest)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
-![Windows](https://img.shields.io/badge/Windows-0078D4?style=flat-square&logo=windows&logoColor=white)
-![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white)
-![Linux](https://img.shields.io/badge/Linux-FCC624?style=flat-square&logo=linux&logoColor=black)
-![Rust](https://img.shields.io/badge/engine-Rust-B7410E?style=flat-square&logo=rust&logoColor=white)
+[![Windows](https://img.shields.io/badge/Windows-.msi-0078D4?style=for-the-badge&logo=windows&logoColor=white)][releases]
+[![macOS](https://img.shields.io/badge/macOS-.dmg-000000?style=for-the-badge&logo=apple&logoColor=white)][releases]
+[![Linux](https://img.shields.io/badge/Linux-AppImage-FCC624?style=for-the-badge&logo=linux&logoColor=black)][releases]
+[![Web](https://img.shields.io/badge/Browser-instaoptics.oneptica.com-4F8FF7?style=for-the-badge)](https://instaoptics.oneptica.com)
 
-[中文](README.zh-CN.md)
+</div>
 
-![](docs/screenshots/workspace.png)
+<p align="center">
+  <a href="https://github.com/Oneptica/instaOptics/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Oneptica/instaOptics/ci.yml?branch=main&label=CI" alt="CI" /></a>
+  <a href="https://github.com/Oneptica/instaOptics/releases/latest"><img src="https://img.shields.io/github/v/release/Oneptica/instaOptics?label=release" alt="Release" /></a>
+  <a href="https://github.com/Oneptica/instaOptics/releases"><img src="https://img.shields.io/github/downloads/Oneptica/instaOptics/total?label=downloads" alt="Downloads" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT" /></a>
+</p>
 
-## Features
+<p align="center"><a href="README.zh-CN.md">中文</a></p>
+
+![instaOptics: bending the first lens of a Cooke triplet, optimizing it back with R2, R4 and the back focus variable, then its MTF and 3D layout](docs/screenshots/demo.gif)
+
+*A Cooke triplet: the first lens is bent and the spot diagram grows, then R2, R4 and the back focus are optimized with the EFL held at 50 mm, followed by the MTF and the 3D layout. Recorded with the [demo script](examples/demo/record.py), which drives the app through the same commands the menus run.*
+
+## Download
+
+- **Windows:** the `.msi` installer
+- **macOS:** the `.dmg` disk image (Apple silicon and Intel)
+- **Linux:** the AppImage, the `.deb` or the `.tar.gz`
+
+All on the [releases page][releases]. Installed copies check for a new version at start-up; the Windows installer and the AppImage update themselves on the next start. Versions up to 0.1.8 were the Electron app: download 0.2 once by hand.
+
+## What works
 
 - Sequential ray tracing: spherical, conic and even-asphere surfaces, mirrors, coordinate breaks, real ray aiming
 - Aperture: entrance pupil diameter, F/#, object NA, float by stop; fields: angle, object height, image height
@@ -34,15 +55,31 @@ Try it in the browser: **[instaoptics.oneptica.com](https://instaoptics.oneptica
 - 2D and 3D layout
 - Zemax `.zmx` import and export
 
-The engine is written in Rust and runs on all CPU cores in a separate process; results update when the system changes.
+## Build from source
 
-## Build
-
-Requires Node.js 24 and Rust.
-
-```bash
-npm install
-npm run dev      # run
-npm test         # Rust tests
-npm run dist     # installer for the current platform
+```sh
+cargo run --release -p instaoptics                   # the desktop app
+cargo run --release -p instaoptics-cli -- commands   # every command and its parameters
+cargo test --workspace
 ```
+
+Packaging scripts for each platform are in [packaging/](packaging/). The code layout is in [docs/architecture.md](docs/architecture.md).
+
+## AI agents (MCP)
+
+`instaoptics-cli mcp` is a [Model Context Protocol](https://modelcontextprotocol.io) server. On its own it works on its own lens; with `--connect` it drives the running app so you can watch. Claude Code: `claude mcp add instaoptics -- instaoptics-cli mcp`. Start the app with `instaoptics --control 7391` and use `instaoptics-cli mcp --connect 127.0.0.1:7391` to work on the open lens. Tools and an example session: [docs/mcp.md](docs/mcp.md).
+
+## Scripts
+
+Every action in the menus is a command, and `instaoptics-cli` runs the same commands:
+
+```sh
+instaoptics-cli convert design.zmx design.iol
+instaoptics-cli analyze lens.iol --request '{"kind":"mtf"}'
+instaoptics-cli render lens.iol --view spot --out spot.png
+instaoptics-cli run lens.iol --cmd 'variable {"surface":2,"parameter":"radius"}' --cmd 'optimize {"cycles":20}' --save out.iol
+```
+
+See [docs/cli.md](docs/cli.md) and [docs/control-protocol.md](docs/control-protocol.md). Lens files are `.iol` (JSON); lengths are mm, wavelengths µm, angles degrees.
+
+[releases]: https://github.com/Oneptica/instaOptics/releases/latest

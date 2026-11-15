@@ -1,6 +1,7 @@
 name: Release
 
-# Push a tag such as v0.1.0 to build installers and attach them to a draft GitHub release.
+# Push a tag such as v0.2.0 to build the installers and attach them to a draft GitHub release.
+# Asset names follow instaoptics-<version>-<os>-<arch>.<ext>; the app's update check looks for them.
 on:
   push:
     tags: ['v*']
@@ -13,37 +14,37 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: windows-latest
-            arch: x64
-          - os: ubuntu-latest
-            arch: x64
-          - os: macos-latest
-            arch: arm64
-          - os: macos-latest
-            arch: x64
-            target: x86_64-apple-darwin
+        os: [windows-latest, ubuntu-22.04, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }}
+          targets: ${{ runner.os == 'macOS' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
       - uses: Swatinem/rust-cache@v2
-        with:
-          key: ${{ matrix.arch }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-      - name: Check the tag matches package.json
+      - name: Check the tag matches Cargo.toml
         shell: bash
-        run: test "v$(node -p "require('./package.json').version")" = "${GITHUB_REF_NAME}"
-      - run: npm ci
-      - run: npm run build
-        env:
-          NATIVE_TARGET: ${{ matrix.target }}
-      - run: npx electron-builder --${{ matrix.arch }} --publish always
+        run: test "v$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)" = "${GITHUB_REF_NAME}"
+      - name: Linux
+        if: runner.os == 'Linux'
+        run: |
+          echo 'deb [trusted=yes] https://repo.goreleaser.com/apt/ /' | sudo tee /etc/apt/sources.list.d/goreleaser.list
+          sudo apt-get update && sudo apt-get install -y nfpm
+          packaging/linux/package.sh
+      - name: macOS
+        if: runner.os == 'macOS'
+        run: packaging/macos/package.sh
+      - name: Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          wix extension add -g WixToolset.UI.wixext/5.0.2
+          packaging/windows/package.ps1
+      - name: Upload to the draft release
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_IDENTITY_AUTO_DISCOVERY: false
+        run: |
+          gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --draft --title "$GITHUB_REF_NAME" --notes ""
+          gh release upload "$GITHUB_REF_NAME" dist/* --clobber

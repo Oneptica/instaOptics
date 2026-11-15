@@ -1,0 +1,15 @@
+[package]
+name = "instaoptics-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "instaOptics sequential optics: lens model, glasses, paraxial optics, real ray tracing and analyses"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+rayon.workspace = true
+num-complex.workspace = true
+
+[lints]
+workspace = true

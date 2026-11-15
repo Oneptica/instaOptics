@@ -1,0 +1,15 @@
+[package]
+name = "instaoptics-render"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "instaOptics figures: analysis results as charts, and a CPU rasteriser for PNG export, the CLI and MCP"
+
+[dependencies]
+instaoptics-core.workspace = true
+tiny-skia.workspace = true
+ab_glyph.workspace = true
+epaint_default_fonts.workspace = true
+
+[lints]
+workspace = true

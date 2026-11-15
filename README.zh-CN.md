@@ -1,22 +1,43 @@
-<img src="build/icon.png" width="72" alt="">
+<p align="center">
+  <img src="assets/hicolor/256x256/apps/com.oneptica.instaoptics.png" width="96" height="96" alt="instaOptics" />
+</p>
 
-# instaOptics
+<h1 align="center">instaOptics</h1>
 
-桌面端光学仿真软件，支持 Windows、macOS、Linux。
+<p align="center">
+  <strong>免费开源的光学仿真软件，纯 Rust 编写。</strong><br />
+  序列光学系统的设计与分析：改动镜头，所有分析随之更新。可以在桌面使用，可以用命令行写脚本，也可以通过内置的 MCP 服务让 AI agent 直接修改镜头。
+</p>
 
-在线体验网页版：**[instaoptics.oneptica.com](https://instaoptics.oneptica.com)**
+<div align="center">
 
-[![CI](https://img.shields.io/github/actions/workflow/status/Oneptica/instaOptics/ci.yml?branch=main&style=flat-square&logo=githubactions&logoColor=white&label=CI)](https://github.com/Oneptica/instaOptics/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/Oneptica/instaOptics?style=flat-square&logo=github&label=release)](https://github.com/Oneptica/instaOptics/releases/latest)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
-![Windows](https://img.shields.io/badge/Windows-0078D4?style=flat-square&logo=windows&logoColor=white)
-![macOS](https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white)
-![Linux](https://img.shields.io/badge/Linux-FCC624?style=flat-square&logo=linux&logoColor=black)
-![Rust](https://img.shields.io/badge/engine-Rust-B7410E?style=flat-square&logo=rust&logoColor=white)
+[![Windows](https://img.shields.io/badge/Windows-.msi-0078D4?style=for-the-badge&logo=windows&logoColor=white)][releases]
+[![macOS](https://img.shields.io/badge/macOS-.dmg-000000?style=for-the-badge&logo=apple&logoColor=white)][releases]
+[![Linux](https://img.shields.io/badge/Linux-AppImage-FCC624?style=for-the-badge&logo=linux&logoColor=black)][releases]
+[![Web](https://img.shields.io/badge/网页版-instaoptics.oneptica.com-4F8FF7?style=for-the-badge)](https://instaoptics.oneptica.com)
 
-[English](README.md)
+</div>
 
-![](docs/screenshots/analysis.png)
+<p align="center">
+  <a href="https://github.com/Oneptica/instaOptics/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Oneptica/instaOptics/ci.yml?branch=main&label=CI" alt="CI" /></a>
+  <a href="https://github.com/Oneptica/instaOptics/releases/latest"><img src="https://img.shields.io/github/v/release/Oneptica/instaOptics?label=release" alt="Release" /></a>
+  <a href="https://github.com/Oneptica/instaOptics/releases"><img src="https://img.shields.io/github/downloads/Oneptica/instaOptics/total?label=downloads" alt="Downloads" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT" /></a>
+</p>
+
+<p align="center"><a href="README.md">English</a></p>
+
+![instaOptics：把 Cooke 三片式的第一片透镜弯坏，再以 R2、R4 和后截距为变量优化回来，然后看 MTF 和三维布局](docs/screenshots/demo.gif)
+
+*Cooke 三片式：先把第一片透镜弯坏，点列图明显变大；再以 R2、R4 和后截距为变量、保持焦距 50 mm 做优化；最后看 MTF 和三维布局。由[演示脚本](examples/demo/record.py)录制，脚本调用的就是菜单使用的那套命令。*
+
+## 下载
+
+- **Windows：** `.msi` 安装包
+- **macOS：** `.dmg` 磁盘映像（Apple 芯片和 Intel 通用）
+- **Linux：** AppImage、`.deb` 或 `.tar.gz`
+
+都在[发布页][releases]。安装后的程序启动时会检查新版本，Windows 安装版和 AppImage 会在下次启动时自动换成新版本。0.1.8 及以前是 Electron 版本，需要手动下载一次 0.2。
 
 ## 功能
 
@@ -34,34 +55,31 @@
 - 二维和三维布局图
 - Zemax `.zmx` 导入导出
 
-计算引擎用 Rust 编写，在独立进程中使用全部 CPU 核心运行；修改系统参数后，结果自动更新。
+## 从源码构建
 
-| | |
-| --- | --- |
-| ![](docs/screenshots/imagesim.png) | ![](docs/screenshots/tolerance.png) |
-| ![](docs/screenshots/workspace.png) | ![](docs/screenshots/3d.png) |
-
-## 构建
-
-需要 Node.js 24 和 Rust。
-
-```bash
-npm install
-npm run dev      # 运行
-npm test         # Rust 测试
-npm run dist     # 打包当前平台的安装包
+```sh
+cargo run --release -p instaoptics                   # 桌面程序
+cargo run --release -p instaoptics-cli -- commands   # 全部命令及参数
+cargo test --workspace
 ```
 
-在 Linux 上，如果 `chrome-sandbox` 没有设置 setuid root，`npm run dev` 会自动加上 `--noSandbox` 参数。如果 WebGL 不可用（例如远程桌面或虚拟机），在菜单里打开"视图 → Software 3D Rendering"。
+各平台的打包脚本在 [packaging/](packaging/)。代码结构见 [docs/architecture.md](docs/architecture.md)。
 
-## 目录
+## AI agent（MCP）
 
-| 路径 | 说明 |
-| --- | --- |
-| `crates/optics-core` | Rust 光学引擎 |
-| `crates/optics-node` | Node-API 绑定 |
-| `src/main` | Electron 主进程 |
-| `src/compute` | 运行引擎的进程 |
-| `src/renderer` | 界面（React） |
+`instaoptics-cli mcp` 是一个 [Model Context Protocol](https://modelcontextprotocol.io) 服务。单独运行时它操作自己的镜头；加 `--connect` 时它驱动正在运行的程序，可以在界面里看着它改。Claude Code：`claude mcp add instaoptics -- instaoptics-cli mcp`。用 `instaoptics --control 7391` 启动程序，再用 `instaoptics-cli mcp --connect 127.0.0.1:7391` 操作当前打开的镜头。工具列表和示例见 [docs/mcp.md](docs/mcp.md)。
 
-文件保存为 `.iol` 格式（JSON）。单位：长度 mm，波长 µm，角度为度。
+## 脚本
+
+菜单里的每个操作都是一条命令，`instaoptics-cli` 运行的是同一套命令：
+
+```sh
+instaoptics-cli convert design.zmx design.iol
+instaoptics-cli analyze lens.iol --request '{"kind":"mtf"}'
+instaoptics-cli render lens.iol --view spot --out spot.png
+instaoptics-cli run lens.iol --cmd 'variable {"surface":2,"parameter":"radius"}' --cmd 'optimize {"cycles":20}' --save out.iol
+```
+
+详见 [docs/cli.md](docs/cli.md) 和 [docs/control-protocol.md](docs/control-protocol.md)。文件格式为 `.iol`（JSON），长度单位 mm，波长 µm，角度为度。
+
+[releases]: https://github.com/Oneptica/instaOptics/releases/latest

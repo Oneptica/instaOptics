@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Per-user or per-machine MSI. MajorUpgrade lets a newer MSI replace the installed version in place. -->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <Package Name="instaOptics" Manufacturer="Oneptica" Version="$(var.Version)" UpgradeCode="DB773B40-C34E-48B5-A7B3-F164FC29DE64" Scope="perUserOrMachine" Compressed="yes" Language="1033">
+    <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A newer version of instaOptics is already installed." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+    <Icon Id="instaoptics.ico" SourceFile="$(var.IconPath)" />
+    <Property Id="ARPPRODUCTICON" Value="instaoptics.ico" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/Oneptica/instaOptics" />
+    <StandardDirectory Id="ProgramFiles6432Folder">
+      <Directory Id="INSTALLFOLDER" Name="instaOptics" />
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder" />
+    <ui:WixUI Id="WixUI_Minimal" />
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.LicenseRtf)" />
+    <Feature Id="Main" Title="instaOptics" Level="1">
+      <Component Id="App" Directory="INSTALLFOLDER" Guid="1A16AEE0-9DA1-4567-BE55-13087C3297E9">
+        <File Id="AppExe" Source="$(var.BinDir)\instaoptics.exe" KeyPath="yes">
+          <Shortcut Id="StartMenu" Directory="ProgramMenuFolder" Name="instaOptics" Description="Optical simulation" WorkingDirectory="INSTALLFOLDER" Advertise="yes" Icon="instaoptics.ico" IconIndex="0" />
+        </File>
+        <RegistryValue Root="HKMU" Key="Software\Classes\.iol\OpenWithProgids" Name="instaOptics.Lens" Value="" Type="string" />
+        <RegistryValue Root="HKMU" Key="Software\Classes\.zmx\OpenWithProgids" Name="instaOptics.Lens" Value="" Type="string" />
+        <RegistryValue Root="HKMU" Key="Software\Classes\instaOptics.Lens\shell\open\command" Value="&quot;[#AppExe]&quot; &quot;%1&quot;" Type="string" />
+      </Component>
+      <Component Id="Cli" Directory="INSTALLFOLDER">
+        <File Id="CliExe" Source="$(var.BinDir)\instaoptics-cli.exe" KeyPath="yes" />
+      </Component>
+    </Feature>
+  </Package>
+</Wix>

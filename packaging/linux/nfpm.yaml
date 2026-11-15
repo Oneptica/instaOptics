@@ -1,0 +1,12 @@
+name: instaoptics
+arch: ${NFPM_ARCH}
+version: ${VERSION}
+maintainer: Oneptica
+description: Free and open-source optical simulation software
+homepage: https://github.com/Oneptica/instaOptics
+license: MIT
+section: science
+contents:
+  - src: ${STAGE}/usr/
+    dst: /usr/
+    type: tree

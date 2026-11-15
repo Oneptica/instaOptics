@@ -1,28 +1,87 @@
 [workspace]
-members = ["crates/optics-core", "crates/optics-node"]
 resolver = "3"
+members = ["crates/*", "apps/*"]
 
 [workspace.package]
-version = "0.1.8"
+version = "0.2.0"
 edition = "2024"
 license = "MIT"
+rust-version = "1.95"
+repository = "https://github.com/Oneptica/instaOptics"
 
 [workspace.dependencies]
+# internal
+instaoptics-core = { path = "crates/core" }
+instaoptics-io = { path = "crates/io" }
+instaoptics-render = { path = "crates/render" }
+instaoptics-engine = { path = "crates/engine" }
+instaoptics-ui-egui = { path = "crates/ui-egui" }
+instaoptics-mcp = { path = "crates/mcp" }
+
+# foundation
+thiserror = "2"
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde_json = { version = "1", features = ["float_roundtrip"] }
 num-complex = "0.4"
+rayon = "1"
+log = "0.4"
+clap = { version = "4", features = ["derive", "env"] }
+
+# rendering
+tiny-skia = { version = "0.12", default-features = false, features = ["std", "simd", "png-format"] }
+ab_glyph = "0.2"
+# The UI font (Ubuntu Light, Ubuntu Font Licence) for text in headless PNG renders, the same face egui draws.
+epaint_default_fonts = "0.37"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "bmp", "tiff"] }
+
+# shared Craft libraries, one reviewed revision for all of them
+craft-ui = { git = "https://github.com/storytold/craft-libs", rev = "30596f73c5ef851ba3dad9cf145669f391e2eb0d", features = ["serde"] }
+craft-settings = { git = "https://github.com/storytold/craft-libs", rev = "30596f73c5ef851ba3dad9cf145669f391e2eb0d" }
+craft-jsonrpc = { git = "https://github.com/storytold/craft-libs", rev = "30596f73c5ef851ba3dad9cf145669f391e2eb0d" }
+craft-mcp = { git = "https://github.com/storytold/craft-libs", rev = "30596f73c5ef851ba3dad9cf145669f391e2eb0d" }
+# HTTPS for the update check and download (rustls, no system OpenSSL).
+ureq = { version = "3", default-features = false, features = ["rustls", "json"] }
+
+# ui
+egui = { version = "0.37", default-features = false, features = ["default_fonts"] }
+eframe = { version = "0.37", default-features = false }
+# Native file dialogs through the XDG desktop portal on Linux (no wayland development files needed to build).
+rfd = { version = "0.17", default-features = false, features = ["xdg-portal"] }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+dbg_macro = "warn"
+todo = "warn"
+type_complexity = "allow"
+too_many_arguments = "allow"
+
+[profile.dev.package."*"]
+opt-level = 2
+debug = false
+
+[profile.dev]
+opt-level = 1
+debug = "line-tables-only"
 
 [profile.release]
-lto = "thin"
-codegen-units = 1
-
-# Fast-to-build optimized native module for `npm run dev`.
-[profile.native-dev]
-inherits = "release"
-lto = false
-codegen-units = 16
-incremental = true
-
-# The physical optics tests propagate full wave fields; unoptimized builds make them many times slower.
-[profile.test]
 opt-level = 3
+lto = "thin"
+codegen-units = 16
+
+# The egui family and winit on the same reviewed fork commits as the other Craft apps.
+[patch.crates-io]
+ecolor = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
+emath = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
+epaint = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
+epaint_default_fonts = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
+egui = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
+egui-winit = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
+egui-wgpu = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
+egui_glow = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
+egui_extras = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
+egui_kittest = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
+egui_system_font_provider = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
+eframe = { git = "https://github.com/storytold/egui.git", rev = "6d518fc799681571963842f95b55a6b68431b15a" }
+winit = { git = "https://github.com/storytold/winit.git", rev = "a517b3846ee8457d84ee4975110bfda6797c44dc" }

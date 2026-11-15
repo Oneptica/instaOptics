@@ -1,0 +1,16 @@
+[package]
+name = "instaoptics-engine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "instaOptics session and commands: the open lens, undo, glass catalogs, and the command registry every front end uses"
+
+[dependencies]
+instaoptics-core.workspace = true
+instaoptics-io.workspace = true
+instaoptics-render.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

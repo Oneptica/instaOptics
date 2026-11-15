@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=instaOptics
+Comment=Optical simulation
+Exec=instaoptics %f
+Icon=com.oneptica.instaoptics
+Terminal=false
+Categories=Science;Physics;Engineering;
+MimeType=application/x-instaoptics-lens;application/x-zemax-lens;
+StartupWMClass=instaoptics

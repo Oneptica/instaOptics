@@ -1,0 +1,24 @@
+[package]
+name = "instaoptics-ui-egui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "instaOptics desktop front end in egui: docked windows, Lens Data editor, analysis plots, control channel"
+
+[dependencies]
+instaoptics-core.workspace = true
+instaoptics-io.workspace = true
+instaoptics-render.workspace = true
+instaoptics-engine.workspace = true
+craft-ui.workspace = true
+craft-settings.workspace = true
+ureq.workspace = true
+egui.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+rfd.workspace = true
+image.workspace = true
+log.workspace = true
+
+[lints]
+workspace = true

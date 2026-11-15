@@ -1,0 +1,20 @@
+[package]
+name = "instaoptics-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Headless instaOptics: open, convert, analyze and render lenses, run commands and scripts, serve MCP"
+
+[[bin]]
+name = "instaoptics-cli"
+path = "src/main.rs"
+
+[dependencies]
+instaoptics-engine.workspace = true
+instaoptics-mcp.workspace = true
+clap.workspace = true
+craft-settings.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true
