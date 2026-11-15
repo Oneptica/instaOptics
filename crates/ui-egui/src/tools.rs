@@ -1,5 +1,6 @@
 //! Tool windows: Optimization, Tolerancing, Beam Propagation, Image Simulation, Multi-Configuration, Glass Catalogs.
 
+use crate::i18n::t;
 use std::collections::HashMap;
 
 use egui::{RichText, Ui};
@@ -234,10 +235,10 @@ pub fn optimize(wb: &mut Workbench, ui: &mut Ui) {
     let st = &mut wb.tools;
     ui.horizontal(|ui| {
         if running {
-            if ui.button("Stop").clicked() {
+            if ui.button(t("Stop")).clicked() {
                 wb.worker.cancel(JobKey::Optimize);
             }
-        } else if ui.add_enabled(!variables.is_empty(), egui::Button::new("Optimize")).on_hover_text(if variables.is_empty() { "Mark variables in the Lens Data editor first" } else { "Damped least squares" }).clicked() {
+        } else if ui.add_enabled(!variables.is_empty(), egui::Button::new(t("Optimize"))).on_hover_text(if variables.is_empty() { "Mark variables in the Lens Data editor first" } else { "Damped least squares" }).clicked() {
             st.opt_base = Some(system.clone());
             st.opt_history.clear();
             st.opt_result = None;
@@ -248,7 +249,7 @@ pub fn optimize(wb: &mut Workbench, ui: &mut Ui) {
                 Output::Optimize(instaoptics_engine::jobs::optimize(&sys, cycles, cancel, |c, m, s| progress.send(Output::OptimizeStep(c, m, s.clone()))))
             });
         }
-        select(ui, "cycles", "Cycles", &mut st.cycles, &[10, 25, 50, 100, 200].map(|v| (v, v.to_string())));
+        select(ui, "cycles", t("Cycles"), &mut st.cycles, &[10, 25, 50, 100, 200].map(|v| (v, v.to_string())));
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             let mut info = String::new();
             if running {
@@ -268,16 +269,16 @@ pub fn optimize(wb: &mut Workbench, ui: &mut Ui) {
     let report = instaoptics_core::optimize::merit_report(&system);
     ui.columns(2, |cols| {
         egui::ScrollArea::vertical().id_salt("opt-form").show(&mut cols[0], |ui| {
-            ui.strong("Merit Function");
+            ui.strong(t("Merit Function"));
             egui::Grid::new("merit").num_columns(3).show(ui, |ui| {
-                ui.label("Criterion");
+                ui.label(t("Criterion"));
                 let mut objective = settings.objective;
-                let opts = [(Objective::Spot, "RMS spot radius (centroid)".to_string()), (Objective::Wavefront, "RMS wavefront error".into()), (Objective::None, "None (operands only)".into())];
+                let opts = [(Objective::Spot, t("RMS spot radius (centroid)").to_string()), (Objective::Wavefront, "RMS wavefront error".into()), (Objective::None, "None (operands only)".into())];
                 if select(ui, "objective", "", &mut objective, &opts) {
                     commands.push(("optimization.set", json!({ "objective": objective })));
                 }
                 ui.end_row();
-                ui.label("Pupil rings");
+                ui.label(t("Pupil rings"));
                 let mut rings = settings.rings.unwrap_or(3);
                 if select(ui, "rings", "", &mut rings, &[2, 3, 4, 5, 6, 8].map(|v| (v, v.to_string()))) {
                     commands.push(("optimization.set", json!({ "rings": rings })));
@@ -285,18 +286,18 @@ pub fn optimize(wb: &mut Workbench, ui: &mut Ui) {
                 ui.end_row();
             });
             ui.add_space(6.0);
-            ui.strong("Targets and Constraints");
+            ui.strong(t("Targets and Constraints"));
             egui::Grid::new("constraints").num_columns(3).show(ui, |ui| {
-                if let Some(v) = row(ui, &mut st.drafts, "efl", "Effective focal length", system.target_efl, "mm") {
+                if let Some(v) = row(ui, &mut st.drafts, "efl", t("Effective focal length"), system.target_efl, "mm") {
                     commands.push(("system.set", json!({ "targetEfl": v })));
                 }
                 let fields: [(&str, &str, Option<f64>, &str); 7] = [
-                    ("maxTotalTrack", "Max total track", settings.max_total_track, "mm"),
-                    ("minBackFocus", "Min back focus", settings.min_back_focus, "mm"),
-                    ("maxChiefRayAngle", "Max chief ray angle", settings.max_chief_ray_angle, "deg"),
-                    ("minGlassCenter", "Min glass centre", settings.min_glass_center, "mm"),
-                    ("minGlassEdge", "Min glass edge", settings.min_glass_edge, "mm"),
-                    ("minAir", "Min air gap", settings.min_air, "mm"),
+                    ("maxTotalTrack", t("Max total track"), settings.max_total_track, "mm"),
+                    ("minBackFocus", t("Min back focus"), settings.min_back_focus, "mm"),
+                    ("maxChiefRayAngle", t("Max chief ray angle"), settings.max_chief_ray_angle, "deg"),
+                    ("minGlassCenter", t("Min glass centre"), settings.min_glass_center, "mm"),
+                    ("minGlassEdge", t("Min glass edge"), settings.min_glass_edge, "mm"),
+                    ("minAir", t("Min air gap"), settings.min_air, "mm"),
                     ("", "", None, ""),
                 ];
                 for (key, label, value, unit) in fields.iter().filter(|f| !f.0.is_empty()) {
@@ -308,13 +309,13 @@ pub fn optimize(wb: &mut Workbench, ui: &mut Ui) {
             ui.add_space(6.0);
             ui.horizontal(|ui| {
                 ui.strong(format!("Operands ({})", settings.operands.len()));
-                if ui.small_button("Add").clicked() {
+                if ui.small_button(t("Add")).clicked() {
                     let efl = wb.overview.as_ref().map_or(0.0, |o| o.paraxial.efl);
                     commands.push(("operand.add", json!({ "kind": "efl", "target": if efl.is_finite() { efl } else { 0.0 } })));
                 }
             });
             egui::Grid::new("operands").striped(true).show(ui, |ui| {
-                for h in ["#", "Type", "Surf / Field", "Rel", "Target", "Weight", "Value", ""] {
+                for h in ["#", t("Type"), t("Surf / Field"), t("Rel"), t("Target"), t("Weight"), t("Value"), ""] {
                     ui.label(RichText::new(h).small());
                 }
                 ui.end_row();
@@ -322,7 +323,7 @@ pub fn optimize(wb: &mut Workbench, ui: &mut Ui) {
                     let index = i + 1;
                     ui.label(index.to_string());
                     let mut kind = o.kind;
-                    if select(ui, ("op-kind", i), "", &mut kind, &OPERANDS.map(|(k, l, ..)| (k, l.to_string()))) {
+                    if select(ui, ("op-kind", i), "", &mut kind, &OPERANDS.map(|(k, l, ..)| (k, t(l).to_string()))) {
                         commands.push(("operand.set", json!({ "index": index, "kind": kind, "surface": null, "field": null })));
                     }
                     let needs = OPERANDS.iter().find(|x| x.0 == o.kind).map_or(0, |x| x.3);
@@ -335,7 +336,7 @@ pub fn optimize(wb: &mut Workbench, ui: &mut Ui) {
                         }
                         2 => {
                             let mut f = o.field.map_or(0, |f| f + 1);
-                            let mut opts = vec![(0, "All".to_string())];
+                            let mut opts = vec![(0, t("All").to_string())];
                             opts.extend((1..=system.fields.len()).map(|k| (k, k.to_string())));
                             if select(ui, ("op-f", i), "", &mut f, &opts) {
                                 commands.push(("operand.set", json!({ "index": index, "field": if f == 0 { Value::Null } else { json!(f) } })));
@@ -368,9 +369,9 @@ pub fn optimize(wb: &mut Workbench, ui: &mut Ui) {
             egui::Grid::new("variables").striped(true).show(ui, |ui| {
                 for v in &variables {
                     let (s, name, value) = match *v {
-                        instaoptics_core::optimize::Variable::Radius { surface } => (surface, "Radius".to_string(), short(system.surfaces[surface].radius)),
-                        instaoptics_core::optimize::Variable::Thickness { surface } => (surface, "Thickness".into(), short(system.surfaces[surface].thickness)),
-                        instaoptics_core::optimize::Variable::Conic { surface } => (surface, "Conic".into(), short(system.surfaces[surface].conic)),
+                        instaoptics_core::optimize::Variable::Radius { surface } => (surface, t("Radius").to_string(), short(system.surfaces[surface].radius)),
+                        instaoptics_core::optimize::Variable::Thickness { surface } => (surface, t("Thickness").into(), short(system.surfaces[surface].thickness)),
+                        instaoptics_core::optimize::Variable::Conic { surface } => (surface, t("Conic").into(), short(system.surfaces[surface].conic)),
                         instaoptics_core::optimize::Variable::Aspheric { surface, term } => (surface, format!("A{}", 2 * term + 4), format!("{:.6e}", system.surfaces[surface].aspheric.get(term).copied().unwrap_or(0.0))),
                     };
                     ui.label((s + 1).to_string());
@@ -407,7 +408,7 @@ pub fn tolerance(wb: &mut Workbench, ui: &mut Ui) {
     let st = &mut wb.tools;
     ui.horizontal(|ui| {
         ui.add_enabled_ui(!busy, |ui| {
-            if ui.button("Sensitivity").clicked() {
+            if ui.button(t("Sensitivity")).clicked() {
                 st.tol_monte_carlo = false;
                 st.tol_error = None;
                 let (sys, settings) = (system.clone(), st.tol.clone());
@@ -415,7 +416,7 @@ pub fn tolerance(wb: &mut Workbench, ui: &mut Ui) {
                     Output::Sensitivity(sys.validate().map_err(|e| e.0).map(|_| instaoptics_core::tolerance::sensitivity(&sys, &settings)))
                 });
             }
-            if ui.button("Monte Carlo").clicked() {
+            if ui.button(t("Monte Carlo")).clicked() {
                 st.tol_monte_carlo = true;
                 st.tol_error = None;
                 st.monte_carlo = None;
@@ -426,7 +427,7 @@ pub fn tolerance(wb: &mut Workbench, ui: &mut Ui) {
                 });
             }
         });
-        if busy && ui.button("Stop").clicked() {
+        if busy && ui.button(t("Stop")).clicked() {
             wb.worker.cancel(JobKey::MonteCarlo);
         }
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -439,10 +440,10 @@ pub fn tolerance(wb: &mut Workbench, ui: &mut Ui) {
     ui.separator();
     ui.columns(2, |cols| {
         let ui = &mut cols[0];
-        ui.strong("Tolerances");
+        ui.strong(t("Tolerances"));
         egui::Grid::new("tol").num_columns(3).show(ui, |ui| {
-            let t = &mut st.tol;
-            for (id, label, value, unit) in [("r", "Radius", &mut t.radius, "± %"), ("t", "Thickness", &mut t.thickness, "± mm"), ("d", "Surface decenter", &mut t.decenter, "± mm"), ("a", "Surface tilt", &mut t.tilt, "± ′"), ("n", "Index nd", &mut t.index, "±"), ("v", "Abbe vd", &mut t.abbe, "± %")] {
+            let tol = &mut st.tol;
+            for (id, label, value, unit) in [("r", t("Radius"), &mut tol.radius, "± %"), ("t", t("Thickness"), &mut tol.thickness, "± mm"), ("d", t("Surface decenter"), &mut tol.decenter, "± mm"), ("a", t("Surface tilt"), &mut tol.tilt, "± ′"), ("n", t("Index nd"), &mut tol.index, "±"), ("v", t("Abbe vd"), &mut tol.abbe, "± %")] {
                 if let Some(Some(v)) = row(ui, &mut st.drafts, &format!("tol-{id}"), label, Some(*value), unit)
                     && v >= 0.0
                 {
@@ -451,21 +452,21 @@ pub fn tolerance(wb: &mut Workbench, ui: &mut Ui) {
             }
         });
         ui.add_space(6.0);
-        ui.strong("Analysis");
+        ui.strong(t("Analysis"));
         egui::Grid::new("tol-analysis").num_columns(2).show(ui, |ui| {
-            ui.label("Compensator");
-            select(ui, "comp", "", &mut st.tol.compensator, &[(Compensator::Focus, "Back focus".to_string()), (Compensator::None, "None".into())]);
+            ui.label(t("Compensator"));
+            select(ui, "comp", "", &mut st.tol.compensator, &[(Compensator::Focus, t("Back focus").to_string()), (Compensator::None, "None".into())]);
             ui.end_row();
-            ui.label("Monte Carlo trials");
+            ui.label(t("Monte Carlo trials"));
             select(ui, "trials", "", &mut st.tol.trials, &[100, 200, 500, 1000, 2000, 5000, 10000].map(|v| (v, v.to_string())));
             ui.end_row();
-            ui.label("Random seed");
+            ui.label(t("Random seed"));
             if let Some(Some(v)) = number_field(ui, &mut st.drafts, "seed", Some(st.tol.seed as f64), 70.0) {
                 st.tol.seed = v.max(1.0) as u32;
             }
             ui.end_row();
         });
-        ui.label(RichText::new("Criterion: polychromatic RMS spot radius about each field's centroid. Monte Carlo draws each parameter from a normal distribution with 2σ = tolerance.").small().color(wb.tokens.muted));
+        ui.label(RichText::new(t("Criterion: polychromatic RMS spot radius about each field's centroid. Monte Carlo draws each parameter from a normal distribution with 2σ = tolerance.")).small().color(wb.tokens.muted));
         let ui = &mut cols[1];
         if let Some(e) = &st.tol_error {
             ui.label(RichText::new(e).color(wb.tokens.error));
@@ -479,7 +480,7 @@ pub fn tolerance(wb: &mut Workbench, ui: &mut Ui) {
             ui.label(RichText::new(format!("Nominal {} µm · estimated as built (RSS) {} µm · {} parameters", um(s.nominal), um(s.estimated), s.rows.len())).monospace().small());
             egui::ScrollArea::vertical().show(ui, |ui| {
                 egui::Grid::new("sens").striped(true).show(ui, |ui| {
-                    for h in ["Surf", "Parameter", "±Tol", "Δ at + (µm)", "Δ at − (µm)", "Worst (µm)"] {
+                    for h in [t("Surf"), t("Parameter"), t("±Tol"), t("Δ at + (µm)"), t("Δ at − (µm)"), t("Worst (µm)")] {
                         ui.label(RichText::new(h).small());
                     }
                     ui.end_row();
@@ -519,20 +520,20 @@ pub fn beam(wb: &mut Workbench, ui: &mut Ui) {
     let input = tag(&[&wb.system_json, &request.to_string()]);
     let mut rebuild = false;
     ui.horizontal(|ui| {
-        if ui.add_enabled(!busy, egui::Button::new(if busy { "Running…" } else { "Run" })).on_hover_text("Propagate the beam through the system").clicked() {
+        if ui.add_enabled(!busy, egui::Button::new(if busy { "Running…" } else { "Run" })).on_hover_text(t("Propagate the beam through the system")).clicked() {
             let sys = system.clone();
             if let Ok(req) = serde_json::from_value::<instaoptics_core::AnalysisRequest>(request.clone()) {
                 wb.worker.spawn(key, input, move |_, _| Output::Analysis(instaoptics_core::analyze(&sys, &req).map_err(|e| e.0)));
             }
         }
-        let views = [(BeamView::SideX, "Side view x–z"), (BeamView::SideY, "Side view y–z"), (BeamView::Radius, "Beam radius"), (BeamView::Section, "Cross section"), (BeamView::Table, "Table")].map(|(v, l)| (v, l.to_string()));
-        rebuild |= select(ui, "beam-view", "View", &mut st.beam_options.beam, &views);
+        let views = [(BeamView::SideX, t("Side view x–z")), (BeamView::SideY, t("Side view y–z")), (BeamView::Radius, t("Beam radius")), (BeamView::Section, t("Cross section")), (BeamView::Table, t("Table"))].map(|(v, l)| (v, l.to_string()));
+        rebuild |= select(ui, "beam-view", t("View"), &mut st.beam_options.beam, &views);
         if st.beam_options.beam == BeamView::Section {
             let planes: Vec<(usize, String)> = match &st.beam_result {
                 Some((AnalysisResult::Pop(p), _)) => p.planes.iter().map(|pl| (pl.surface, if pl.surface >= system.surfaces.len() { "Image".into() } else { format!("After surface {}", pl.surface + 1) })).collect(),
                 _ => Vec::new(),
             };
-            rebuild |= select(ui, "beam-plane", "Plane", &mut st.beam_options.beam_plane, &planes);
+            rebuild |= select(ui, "beam-plane", t("Plane"), &mut st.beam_options.beam_plane, &planes);
         }
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| busy_label(ui, st.beam_ms, busy));
     });
@@ -543,50 +544,50 @@ pub fn beam(wb: &mut Workbench, ui: &mut Ui) {
     egui::Panel::left("beam-form").resizable(true).default_size(260.0).show(ui, |ui| {
         let b = &mut st.beam;
         egui::Grid::new("beam").num_columns(3).show(ui, |ui| {
-            ui.label("Beam");
-            select(ui, "beam-kind", "", &mut b.kind, &[(0u8, "Gaussian".to_string()), (1, "Super-Gaussian".into()), (2, "Flat top (circular)".into())]);
+            ui.label(t("Beam"));
+            select(ui, "beam-kind", "", &mut b.kind, &[(0u8, t("Gaussian").to_string()), (1, "Super-Gaussian".into()), (2, "Flat top (circular)".into())]);
             ui.end_row();
-            ui.label("Field");
+            ui.label(t("Field"));
             let mut f = b.field.map_or(0, |f| f + 1);
-            let mut opts = vec![(0usize, "On axis".to_string())];
+            let mut opts = vec![(0usize, t("On axis").to_string())];
             opts.extend(system.fields.iter().enumerate().map(|(i, v)| (i + 1, format!("{}: {}", i + 1, figures::field_label(*v, system.field_type)))));
             if select(ui, "beam-field", "", &mut f, &opts) {
                 b.field = f.checked_sub(1);
             }
             ui.end_row();
-            ui.label("Wavelength");
+            ui.label(t("Wavelength"));
             select(ui, "beam-wl", "", &mut b.wavelength, &system.wavelengths.iter().enumerate().map(|(i, w)| (i, format!("{w:.4} µm"))).collect::<Vec<_>>());
             ui.end_row();
-            if let Some(v) = row(ui, &mut st.drafts, "beam-r", if b.kind == 0 { "Waist radius (1/e²)" } else { "Radius" }, b.radius, "mm") {
+            if let Some(v) = row(ui, &mut st.drafts, "beam-r", if b.kind == 0 { t("Waist radius (1/e²)") } else { t("Radius") }, b.radius, "mm") {
                 b.radius = v.filter(|r| *r > 0.0);
             }
             if b.kind == 0 {
-                if let Some(Some(v)) = row(ui, &mut st.drafts, "beam-w", "Waist position", Some(b.waist), "mm") {
+                if let Some(Some(v)) = row(ui, &mut st.drafts, "beam-w", t("Waist position"), Some(b.waist), "mm") {
                     b.waist = v;
                 }
             } else {
                 if b.kind == 1
-                    && let Some(Some(v)) = row(ui, &mut st.drafts, "beam-o", "Order", Some(b.order), "")
+                    && let Some(Some(v)) = row(ui, &mut st.drafts, "beam-o", t("Order"), Some(b.order), "")
                 {
                     b.order = v.max(1.0);
                 }
-                if let Some(v) = row(ui, &mut st.drafts, "beam-c", "Curvature radius", b.curvature, "mm") {
+                if let Some(v) = row(ui, &mut st.drafts, "beam-c", t("Curvature radius"), b.curvature, "mm") {
                     b.curvature = v;
                 }
             }
-            ui.label("Grid samples");
+            ui.label(t("Grid samples"));
             select(ui, "beam-n", "", &mut b.samples, &[(128, "128 × 128".to_string()), (256, "256 × 256".into()), (512, "512 × 512".into())]);
             ui.end_row();
-            if let Some(v) = row(ui, &mut st.drafts, "beam-fib", "Fibre mode radius", b.fiber, "mm") {
+            if let Some(v) = row(ui, &mut st.drafts, "beam-fib", t("Fibre mode radius"), b.fiber, "mm") {
                 b.fiber = v.filter(|r| *r > 0.0);
             }
         });
-        ui.checkbox(&mut b.aberrations, "Include wavefront aberration");
-        ui.checkbox(&mut b.apertures, "Clip at fixed surface apertures");
-        if let Some((_, t)) = &st.beam_result
-            && *t != input
+        ui.checkbox(&mut b.aberrations, t("Include wavefront aberration"));
+        ui.checkbox(&mut b.apertures, t("Clip at fixed surface apertures"));
+        if let Some((_, ran)) = &st.beam_result
+            && *ran != input
         {
-            ui.label(RichText::new("The lens or the settings changed since this result.").small().color(wb.tokens.warning));
+            ui.label(RichText::new(t("The lens or the settings changed since this result.")).small().color(wb.tokens.warning));
         }
     });
     if let Some(e) = &st.beam_error {
@@ -595,7 +596,7 @@ pub fn beam(wb: &mut Workbench, ui: &mut Ui) {
     match &st.beam_figure {
         Some(f) => crate::plot::show(ui, egui::Id::unique("beam"), f, &wb.tokens, &mut wb.textures),
         None => {
-            ui.centered_and_justified(|ui| ui.label(RichText::new(if busy { "Propagating…" } else { "Set up a source and press Run." }).color(wb.tokens.muted)));
+            ui.centered_and_justified(|ui| ui.label(RichText::new(if busy { t("Propagating…") } else { t("Set up a source and press Run.") }).color(wb.tokens.muted)));
         }
     }
 }
@@ -628,11 +629,11 @@ pub fn image_sim(wb: &mut Workbench, ui: &mut Ui) {
     let busy = wb.worker.is_running(JobKey::ImageSim);
     let st = &mut wb.tools;
     if st.image.is_none() {
-        st.image = Some((test_chart(512), 512, 512, "Test chart".into()));
+        st.image = Some((test_chart(512), 512, 512, t("Test chart").into()));
         st.sim_input = None;
     }
     ui.horizontal(|ui| {
-        if ui.button("Load Image…").clicked()
+        if ui.button(t("Load Image…")).clicked()
             && let Some(path) = rfd::FileDialog::new().add_filter("Image", &["png", "jpg", "jpeg", "bmp", "tif", "tiff"]).pick_file()
         {
             match image::open(&path) {
@@ -646,11 +647,11 @@ pub fn image_sim(wb: &mut Workbench, ui: &mut Ui) {
                 Err(e) => st.sim_error = Some(e.to_string()),
             }
         }
-        if ui.small_button("Test Chart").clicked() {
+        if ui.small_button(t("Test Chart")).clicked() {
             st.image = None;
             st.sim_output = None;
         }
-        if ui.add_enabled(!busy && st.image.is_some(), egui::Button::new(if busy { "Simulating…" } else { "Simulate" })).clicked()
+        if ui.add_enabled(!busy && st.image.is_some(), egui::Button::new(if busy { t("Simulating…") } else { t("Simulate") })).clicked()
             && let Some((rgba, w, h, _)) = st.image.clone()
         {
             let (sys, settings) = (system.clone(), st.sim_settings.clone());
@@ -659,10 +660,10 @@ pub fn image_sim(wb: &mut Workbench, ui: &mut Ui) {
             });
         }
         let s = &mut st.sim_settings;
-        select(ui, "sim-rings", "Rings", &mut s.rings, &[3, 4, 6, 8, 10].map(|v| (v, v.to_string())));
-        select(ui, "sim-fields", "Field samples", &mut s.field_samples, &[8, 16, 32, 64].map(|v| (v, v.to_string())));
-        ui.checkbox(&mut s.diffraction, "Diffraction");
-        ui.label("Pixel pitch (µm, blank: fit)");
+        select(ui, "sim-rings", t("Rings"), &mut s.rings, &[3, 4, 6, 8, 10].map(|v| (v, v.to_string())));
+        select(ui, "sim-fields", t("Field samples"), &mut s.field_samples, &[8, 16, 32, 64].map(|v| (v, v.to_string())));
+        ui.checkbox(&mut s.diffraction, t("Diffraction"));
+        ui.label(t("Pixel pitch (µm, blank: fit)"));
         if let Some(v) = number_field(ui, &mut st.drafts, "sim-pitch", Some(s.pixel_pitch).filter(|p| *p > 0.0), 60.0) {
             s.pixel_pitch = v.filter(|p| *p > 0.0).unwrap_or(0.0);
         }
@@ -712,7 +713,7 @@ pub fn configs(wb: &mut Workbench, ui: &mut Ui) {
     let st = &mut wb.tools;
     let Some(configs) = &system.configs else {
         ui.horizontal(|ui| {
-            if ui.button("Add Configurations").on_hover_text("Surface parameters take a different value in each configuration: zoom positions, scan angles, tolerance cases").clicked() {
+            if ui.button(t("Add Configurations")).on_hover_text(t("Surface parameters take a different value in each configuration: zoom positions, scan angles, tolerance cases")).clicked() {
                 commands.push(("config.add", json!({})));
             }
         });
@@ -723,28 +724,28 @@ pub fn configs(wb: &mut Workbench, ui: &mut Ui) {
     };
     let active = instaoptics_engine::edit::active_configuration(&system);
     ui.horizontal(|ui| {
-        if ui.small_button("Add Configuration").clicked() {
+        if ui.small_button(t("Add Configuration")).clicked() {
             commands.push(("config.add", json!({})));
         }
-        if ui.add_enabled(configs.names.len() > 1, egui::Button::new("Remove Configuration").small()).on_hover_text("Remove the active configuration").clicked() {
+        if ui.add_enabled(configs.names.len() > 1, egui::Button::new(t("Remove Configuration")).small()).on_hover_text(t("Remove the active configuration")).clicked() {
             commands.push(("config.remove", json!({ "index": active + 1 })));
         }
         ui.separator();
         st.config_surface = st.config_surface.min(system.surfaces.len() - 1);
-        select(ui, "cfg-s", "Surface", &mut st.config_surface, &(0..system.surfaces.len()).map(|i| (i, (i + 1).to_string())).collect::<Vec<_>>());
-        select(ui, "cfg-p", "", &mut st.config_parameter, &CONFIG_PARAMETERS.map(|(p, l)| (p, l.to_string())));
-        if ui.small_button("Add Row").clicked() {
+        select(ui, "cfg-s", t("Surface"), &mut st.config_surface, &(0..system.surfaces.len()).map(|i| (i, (i + 1).to_string())).collect::<Vec<_>>());
+        select(ui, "cfg-p", "", &mut st.config_parameter, &CONFIG_PARAMETERS.map(|(p, l)| (p, t(l).to_string())));
+        if ui.small_button(t("Add Row")).clicked() {
             commands.push(("config.row.add", json!({ "surface": st.config_surface + 1, "parameter": st.config_parameter })));
         }
     });
     ui.separator();
     egui::ScrollArea::both().show(ui, |ui| {
         egui::Grid::new("mce").striped(true).show(ui, |ui| {
-            ui.label(RichText::new("Surf").small());
-            ui.label(RichText::new("Parameter").small());
+            ui.label(RichText::new(t("Surf")).small());
+            ui.label(RichText::new(t("Parameter")).small());
             for (k, name) in configs.names.iter().enumerate() {
                 ui.horizontal(|ui| {
-                    if ui.radio(k == active, "").on_hover_text("Make this the active configuration").clicked() {
+                    if ui.radio(k == active, "").on_hover_text(t("Make this the active configuration")).clicked() {
                         commands.push(("config.active", json!({ "index": k + 1 })));
                     }
                     if let Some(text) = text_field(ui, &mut st.drafts, &format!("cfg-name{k}"), name, 80.0) {
@@ -756,7 +757,7 @@ pub fn configs(wb: &mut Workbench, ui: &mut Ui) {
             ui.end_row();
             for (r, cr) in configs.rows.iter().enumerate() {
                 ui.label((cr.surface + 1).to_string());
-                ui.label(CONFIG_PARAMETERS.iter().find(|p| p.0 == cr.parameter).map_or("", |p| p.1));
+                ui.label(CONFIG_PARAMETERS.iter().find(|p| p.0 == cr.parameter).map_or("", |p| t(p.1)));
                 for k in 0..configs.names.len() {
                     let id = format!("cfg{r}-{k}");
                     match cr.values.get(k) {
@@ -773,7 +774,7 @@ pub fn configs(wb: &mut Workbench, ui: &mut Ui) {
                         }
                     }
                 }
-                if ui.small_button("×").on_hover_text("Remove row").clicked() {
+                if ui.small_button("×").on_hover_text(t("Remove row")).clicked() {
                     commands.push(("config.row.remove", json!({ "row": r + 1 })));
                 }
                 ui.end_row();
@@ -811,14 +812,14 @@ pub fn glasses(wb: &mut Workbench, ui: &mut Ui) {
     let mut add = false;
     let st = &mut wb.tools;
     ui.horizontal(|ui| {
-        add = ui.button("Add Catalog…").on_hover_text("Add OpticStudio glass catalogs (.agf)").clicked();
-        let mut opts = vec![(String::new(), "All".to_string())];
+        add = ui.button(t("Add Catalog…")).on_hover_text(t("Add OpticStudio glass catalogs (.agf)")).clicked();
+        let mut opts = vec![(String::new(), t("All").to_string())];
         opts.extend(sources.iter().map(|s| (s.clone(), s.clone())));
-        select(ui, "glass-src", "Source", &mut st.glass_catalog, &opts);
+        select(ui, "glass-src", t("Source"), &mut st.glass_catalog, &opts);
         ui.add(egui::TextEdit::singleline(&mut st.glass_query).hint_text("Search glass name").desired_width(160.0));
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            let label = target.map_or("Select a surface".to_string(), |s| format!("Use for surface {}", s + 1));
-            if ui.add_enabled(!st.glass_picked.is_empty() && target.is_some(), egui::Button::new(label)).on_hover_text("Use the selected glass for the surface selected in the Lens Data editor").clicked() {
+            let label = target.map_or(t("Select a surface").to_string(), |s| format!("Use for surface {}", s + 1));
+            if ui.add_enabled(!st.glass_picked.is_empty() && target.is_some(), egui::Button::new(label)).on_hover_text(t("Use the selected glass for the surface selected in the Lens Data editor")).clicked() {
                 apply = Some(st.glass_picked.clone());
             }
         });
@@ -827,14 +828,14 @@ pub fn glasses(wb: &mut Workbench, ui: &mut Ui) {
     let needle = st.glass_query.trim().to_uppercase();
     let shown: Vec<_> = all.iter().filter(|g| (st.glass_catalog.is_empty() || g.catalog == st.glass_catalog) && (needle.is_empty() || g.name.to_uppercase().contains(&needle))).collect();
     egui::Panel::left("glass-side").resizable(true).default_size(360.0).show(ui, |ui| {
-        ui.strong("Catalogs");
+        ui.strong(t("Catalogs"));
         for s in &sources {
             ui.horizontal(|ui| {
                 let (dot, _) = ui.allocate_exact_size(egui::Vec2::splat(12.0), egui::Sense::hover());
                 ui.painter().circle_filled(dot.center(), 4.0, wb.tokens.color(color(s)));
                 ui.label(s);
                 ui.label(RichText::new(all.iter().filter(|g| &g.catalog == s).count().to_string()).color(wb.tokens.muted));
-                if s != instaoptics_engine::session::BUILT_IN && ui.small_button("×").on_hover_text("Remove this catalog").clicked() {
+                if s != instaoptics_engine::session::BUILT_IN && ui.small_button("×").on_hover_text(t("Remove this catalog")).clicked() {
                     remove = Some(s.clone());
                 }
             });
@@ -846,7 +847,7 @@ pub fn glasses(wb: &mut Workbench, ui: &mut Ui) {
     const LIMIT: usize = 500;
     egui::ScrollArea::vertical().show(ui, |ui| {
         egui::Grid::new("glass-table").striped(true).show(ui, |ui| {
-            for h in ["Name", "Catalog", "nd", "vd", "Formula", "Range (µm)"] {
+            for h in [t("Name"), t("Catalog"), "nd", "vd", t("Formula"), t("Range (µm)")] {
                 ui.label(RichText::new(h).small());
             }
             ui.end_row();

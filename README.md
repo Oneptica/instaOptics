@@ -54,6 +54,7 @@ All on the [releases page][releases]. Installed copies check for a new version a
 - Solves (marginal ray height, pickups) and multi-configuration data
 - 2D and 3D layout
 - Zemax `.zmx` import and export
+- Interface in English, 简体中文, 繁體中文, 日本語, 한국어, Deutsch, Français, Español and Русский (View → Language)
 
 ## Accuracy
 

@@ -1,0 +1,232 @@
+# English	translation
+Rings	Кольца
+Max freq.	Макс. частота
+Field	Поле
+Scale	Шкала
+Wavelength	Длина волны
+Frequency	Частота
+Range	Диапазон
+Frequencies	Частоты
+Surface	Поверхность
+Input	Вход
+Transmission	Пропускание
+Diattenuation	Диаттенюация
+Retardance	Фазовая задержка
+Map	Карта
+Save as PNG image	Сохранить как PNG
+Export data as CSV	Экспорт данных в CSV
+File	Файл
+New System	Новая система
+Open…	Открыть…
+Open Recent	Недавние
+Samples	Примеры
+Save	Сохранить
+Save As…	Сохранить как…
+Import Zemax (.zmx)…	Импорт Zemax (.zmx)…
+Export Zemax (.zmx)…	Экспорт Zemax (.zmx)…
+Exit	Выход
+Edit	Правка
+Undo	Отменить
+Redo	Повторить
+Setup	Настройка
+Analyze	Анализ
+Image Quality	Качество изображения
+Aberrations	Аберрации
+Polarization	Поляризация
+Physical Optics	Физическая оптика
+Optimize	Оптимизация
+Remove All Variables	Удалить все переменные
+Tolerance	Допуски
+Libraries	Библиотеки
+Add Glass Catalog…	Добавить каталог стёкол…
+View	Вид
+Language	Язык
+System Language	Язык системы
+Reset Window Layout	Сбросить расположение окон
+Full Screen	Полноэкранный режим
+Help	Справка
+Check for Updates…	Проверить обновления…
+Source code	Исходный код
+Time for paraxial data, apertures and layout	Время расчёта параксиальных данных, апертур и схемы
+Don't Save	Не сохранять
+Cancel	Отмена
+Aperture	Апертура
+Entrance pupil diameter	Диаметр входного зрачка
+Image space F/#	F/# в пространстве изображений
+Paraxial working F/#	Параксиальное рабочее F/#
+Object space NA	Числовая апертура в пространстве предметов
+Float by stop size	По размеру диафрагмы
+Fields	Поля
+Angle (deg)	Угол (°)
+Object height (mm)	Высота предмета (мм)
+Paraxial image height (mm)	Параксиальная высота изображения (мм)
+Remove field	Удалить поле
+Add field	Добавить поле
+Wavelengths	Длины волн
+Wavelength (µm) · primary	Длина волны (мкм) · основная
+Primary wavelength	Основная длина волны
+Remove wavelength	Удалить длину волны
+Add wavelength	Добавить длину волны
+Use the F, d and C lines	Использовать линии F, d и C
+Object	Предмет
+Object at infinity	Предмет на бесконечности
+Object distance	Расстояние до предмета
+Ray Aiming	Наведение лучей
+Aim real rays at the stop	Наводить реальные лучи на диафрагму
+Title	Название
+General	Общее
+Real	Реальное
+Paraxial	Параксиальное
+Decenter X	Децентрировка X
+Decenter Y	Децентрировка Y
+Tilt X	Наклон X
+Tilt Y	Наклон Y
+Tilt Z	Наклон Z
+Insert	Вставить
+Insert a surface before (Insert)	Вставить поверхность перед (Insert)
+Insert After	Вставить после
+Insert a surface after (Ctrl+Insert)	Вставить поверхность после (Ctrl+Insert)
+Delete	Удалить
+Delete the surface (Delete)	Удалить поверхность (Delete)
+Make Stop	Сделать диафрагмой
+Variable	Переменная
+Toggle the selected cell as an optimization variable (Ctrl+T)	Переключить ячейку как переменную оптимизации (Ctrl+T)
+Coordinate Break	Разрыв координат
+Turn the surface into a coordinate break, or back	Превратить поверхность в разрыв координат или обратно
+Image	Изображение
+Surf	Пов.
+Type	Тип
+Coord Break	Разрыв коорд.
+Even Asphere	Чётная асфера
+Standard	Стандартная
+Unknown material	Неизвестный материал
+Stop	Остановить
+Cycles	Циклы
+Merit Function	Функция качества
+Criterion	Критерий
+RMS spot radius (centroid)	СКО радиуса пятна (центроид)
+Pupil rings	Кольца зрачка
+Targets and Constraints	Цели и ограничения
+Effective focal length	Эффективное фокусное расстояние
+Max total track	Макс. длина системы
+Min back focus	Мин. задний отрезок
+Max chief ray angle	Макс. угол главного луча
+Min glass centre	Мин. толщина стекла по оси
+Min glass edge	Мин. толщина стекла по краю
+Min air gap	Мин. воздушный промежуток
+Add	Добавить
+Surf / Field	Пов. / Поле
+Rel	Отн.
+Target	Цель
+Weight	Вес
+Value	Значение
+All	Все
+Radius	Радиус
+Thickness	Толщина
+Conic	Коническая константа
+Sensitivity	Чувствительность
+Monte Carlo	Монте-Карло
+Tolerances	Допуски
+Surface decenter	Децентрировка поверхности
+Surface tilt	Наклон поверхности
+Index nd	Показатель nd
+Abbe vd	Число Аббе vd
+Analysis	Анализ
+Compensator	Компенсатор
+Back focus	Задний отрезок
+Monte Carlo trials	Испытания Монте-Карло
+Random seed	Начальное значение генератора
+Criterion: polychromatic RMS spot radius about each field's centroid. Monte Carlo draws each parameter from a normal distribution with 2σ = tolerance.	Критерий: полихроматический СКО радиуса пятна относительно центроида каждого поля. Монте-Карло берёт каждый параметр из нормального распределения с 2σ = допуск.
+Parameter	Параметр
+±Tol	±Доп.
+Δ at + (µm)	Δ при + (мкм)
+Δ at − (µm)	Δ при − (мкм)
+Worst (µm)	Худшее (мкм)
+Propagate the beam through the system	Распространить пучок через систему
+Side view x–z	Вид сбоку x–z
+Side view y–z	Вид сбоку y–z
+Beam radius	Радиус пучка
+Cross section	Сечение
+Table	Таблица
+Plane	Плоскость
+Beam	Пучок
+Gaussian	Гауссов
+On axis	На оси
+Waist radius (1/e²)	Радиус перетяжки (1/e²)
+Waist position	Положение перетяжки
+Order	Порядок
+Curvature radius	Радиус кривизны
+Grid samples	Точки сетки
+Fibre mode radius	Радиус моды волокна
+Include wavefront aberration	Учитывать волновую аберрацию
+Clip at fixed surface apertures	Обрезать по фиксированным апертурам
+The lens or the settings changed since this result.	Линза или настройки изменились после этого результата.
+Propagating…	Распространение…
+Set up a source and press Run.	Настройте источник и нажмите «Запуск».
+Test chart	Тестовая таблица
+Load Image…	Загрузить изображение…
+Test Chart	Тестовая таблица
+Simulating…	Моделирование…
+Simulate	Моделировать
+Field samples	Точки поля
+Diffraction	Дифракция
+Pixel pitch (µm, blank: fit)	Шаг пикселя (мкм, пусто: подбор)
+Add Configurations	Добавить конфигурации
+Surface parameters take a different value in each configuration: zoom positions, scan angles, tolerance cases	Параметры поверхностей принимают разные значения в каждой конфигурации: положения зума, углы сканирования, случаи допусков
+Add Configuration	Добавить конфигурацию
+Remove Configuration	Удалить конфигурацию
+Remove the active configuration	Удалить активную конфигурацию
+Add Row	Добавить строку
+Make this the active configuration	Сделать активной конфигурацией
+Remove row	Удалить строку
+Add Catalog…	Добавить каталог…
+Add OpticStudio glass catalogs (.agf)	Добавить каталоги стёкол OpticStudio (.agf)
+Source	Источник
+Select a surface	Выберите поверхность
+Use the selected glass for the surface selected in the Lens Data editor	Использовать выбранное стекло для поверхности, выбранной в редакторе данных
+Catalogs	Каталоги
+Remove this catalog	Удалить этот каталог
+Name	Название
+Catalog	Каталог
+Formula	Формула
+Range (µm)	Диапазон (мкм)
+System Explorer	Обозреватель системы
+Lens Data	Данные линзы
+System Data	Данные системы
+Multi-Configuration	Мультиконфигурация
+2D Layout	2D-схема
+3D Layout	3D-схема
+Spot Diagram	Точечная диаграмма
+Ray Fan	Веер лучей
+FFT MTF	ЧКХ (FFT)
+FFT PSF	ФРТ (FFT)
+Wavefront Map	Карта волнового фронта
+Through-Focus MTF	ЧКХ по фокусу
+MTF vs Field	ЧКХ по полю
+Footprint Diagram	Отпечаток пучка
+Field Curvature / Distortion	Кривизна поля / Дисторсия
+Seidel Diagram	Диаграмма Зейделя
+Chromatic Focal Shift	Хроматический сдвиг фокуса
+Relative Illumination	Относительная освещённость
+Coating	Покрытие
+Polarization Maps	Карты поляризации
+Transmission vs Field	Пропускание по полю
+Beam Propagation	Распространение пучка
+Image Simulation	Моделирование изображения
+Optimization	Оптимизация
+Tolerancing	Анализ допусков
+Glass Catalogs	Каталоги стёкол
+Material	Материал
+Solve	Решение
+Clear Semi-Dia	Световой полудиаметр
+Total track	Длина системы
+Image height	Высота изображения
+Chief ray angle	Угол главного луча
+Distortion	Дисторсия
+RMS spot radius	СКО радиуса пятна
+Search glass name	Поиск стекла
+Computing…	Расчёт…
+Cutoff	Предельная
+showing the last valid result	показан последний верный результат
+stop	диафрагма
+surfaces	поверхностей

@@ -38,7 +38,7 @@ pub fn ui(wb: &mut Workbench, ui: &mut Ui) {
     }
     let t = wb.tokens;
     let Some(AnalysisResult::Layout3d(layout)) = wb.analyses.get(&Panel::Layout3d).and_then(|w| w.result.as_ref()) else {
-        ui.centered_and_justified(|ui| ui.label(egui::RichText::new("Computing…").color(t.muted)));
+        ui.centered_and_justified(|ui| ui.label(egui::RichText::new(crate::i18n::t("Computing…")).color(t.muted)));
         return;
     };
     let st = &mut wb.view3d;

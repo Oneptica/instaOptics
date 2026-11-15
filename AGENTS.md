@@ -15,6 +15,7 @@ instaOptics is free and open-source optical simulation software for sequential l
 - **Figures are defined once** in `crates/render/src/figures.rs`. The egui painter and the PNG rasteriser both draw them.
 - **The interface thread does no optics.** Computations go through `ui-egui/src/worker.rs`.
 - **Never crash.** Production crate roots deny `unwrap`, `expect`, `panic!`, `todo!`, `unimplemented!`, `unreachable!`; `unsafe` is forbidden. Return errors.
+- **Interface text is translated.** Wrap every string the user reads in `i18n::t("English")` and add it to every `crates/ui-egui/i18n/*.tsv`; a test fails when a catalog lacks one. Figures stay in English.
 - **Rust only.** No JavaScript, TypeScript, Electron or webview.
 - Units: lengths mm, wavelengths µm, angles degrees. Surfaces are numbered from 1 in commands and the UI, from 0 in the lens model.
 

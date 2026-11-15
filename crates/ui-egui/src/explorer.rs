@@ -1,5 +1,6 @@
 //! System Explorer (aperture, fields, wavelengths, object, ray aiming) and the System Data report.
 
+use crate::i18n::t;
 use egui::{RichText, Ui};
 use instaoptics_core::system::{ApertureType, FieldType};
 use instaoptics_render::figures::short;
@@ -44,17 +45,17 @@ fn section(ui: &mut Ui, title: &str, add: impl FnOnce(&mut Ui)) {
 
 pub fn ui(wb: &mut Workbench, ui: &mut Ui) {
     let system = wb.session.system().clone();
-    let t = wb.tokens;
+    let tk = wb.tokens;
     let mut set: Option<Value> = None;
     let drafts = &mut wb.explorer.drafts;
     egui::ScrollArea::vertical().show(ui, |ui| {
-        section(ui, "Aperture", |ui| {
+        section(ui, t("Aperture"), |ui| {
             let types = [
-                (ApertureType::EntrancePupilDiameter, "Entrance pupil diameter", "mm"),
-                (ApertureType::ImageFNumber, "Image space F/#", ""),
-                (ApertureType::WorkingFNumber, "Paraxial working F/#", ""),
-                (ApertureType::ObjectNa, "Object space NA", ""),
-                (ApertureType::FloatByStop, "Float by stop size", "mm"),
+                (ApertureType::EntrancePupilDiameter, t("Entrance pupil diameter"), "mm"),
+                (ApertureType::ImageFNumber, t("Image space F/#"), ""),
+                (ApertureType::WorkingFNumber, t("Paraxial working F/#"), ""),
+                (ApertureType::ObjectNa, t("Object space NA"), ""),
+                (ApertureType::FloatByStop, t("Float by stop size"), "mm"),
             ];
             let (_, label, unit) = types.iter().find(|(a, ..)| *a == system.aperture_type).copied().unwrap_or(types[0]);
             egui::ComboBox::from_id_salt("aperture-type").selected_text(label).width(220.0).show_ui(ui, |ui| {
@@ -92,11 +93,11 @@ pub fn ui(wb: &mut Workbench, ui: &mut Ui) {
             if system.aperture_type != ApertureType::EntrancePupilDiameter
                 && let Some(o) = &wb.overview
             {
-                ui.label(RichText::new(format!("Entrance pupil diameter {:.4} mm", o.entrance_pupil_diameter)).small().color(t.muted));
+                ui.label(RichText::new(format!("Entrance pupil diameter {:.4} mm", o.entrance_pupil_diameter)).small().color(tk.muted));
             }
         });
-        section(ui, "Fields", |ui| {
-            let types = [(FieldType::Angle, "Angle (deg)"), (FieldType::ObjectHeight, "Object height (mm)"), (FieldType::ImageHeight, "Paraxial image height (mm)")];
+        section(ui, t("Fields"), |ui| {
+            let types = [(FieldType::Angle, t("Angle (deg)")), (FieldType::ObjectHeight, t("Object height (mm)")), (FieldType::ImageHeight, t("Paraxial image height (mm)"))];
             let label = types.iter().find(|(f, _)| *f == system.field_type).map_or("", |(_, l)| *l);
             egui::ComboBox::from_id_salt("field-type").selected_text(label).width(220.0).show_ui(ui, |ui| {
                 for (f, l) in types {
@@ -110,14 +111,14 @@ pub fn ui(wb: &mut Workbench, ui: &mut Ui) {
             let mut remove = None;
             for (i, f) in system.fields.iter().enumerate() {
                 ui.horizontal(|ui| {
-                    ui.label(RichText::new(format!("{:>2}", i + 1)).monospace().color(t.color(instaoptics_render::field_color(i))));
+                    ui.label(RichText::new(format!("{:>2}", i + 1)).monospace().color(tk.color(instaoptics_render::field_color(i))));
                     if let Some(Some(v)) = number_field(ui, drafts, &format!("field{i}"), Some(*f), 90.0)
                         && v.is_finite()
                     {
                         fields[i] = v;
                         changed = true;
                     }
-                    if ui.add_enabled(system.fields.len() > 1, egui::Button::new("×").small()).on_hover_text("Remove field").clicked() {
+                    if ui.add_enabled(system.fields.len() > 1, egui::Button::new("×").small()).on_hover_text(t("Remove field")).clicked() {
                         remove = Some(i);
                     }
                 });
@@ -126,7 +127,7 @@ pub fn ui(wb: &mut Workbench, ui: &mut Ui) {
                 fields.remove(i);
                 changed = true;
             }
-            if ui.small_button("Add field").clicked() {
+            if ui.small_button(t("Add field")).clicked() {
                 fields.push(fields.last().copied().unwrap_or(0.0));
                 changed = true;
             }
@@ -134,8 +135,8 @@ pub fn ui(wb: &mut Workbench, ui: &mut Ui) {
                 set = Some(json!({ "fields": fields }));
             }
         });
-        section(ui, "Wavelengths", |ui| {
-            ui.label(RichText::new("Wavelength (µm) · primary").small().color(t.muted));
+        section(ui, t("Wavelengths"), |ui| {
+            ui.label(RichText::new(t("Wavelength (µm) · primary")).small().color(tk.muted));
             let mut wl = system.wavelengths.clone();
             let mut primary = system.primary_wavelength;
             let mut changed = false;
@@ -150,11 +151,11 @@ pub fn ui(wb: &mut Workbench, ui: &mut Ui) {
                         wl[i] = v;
                         changed = true;
                     }
-                    if ui.radio(i == primary, "").on_hover_text("Primary wavelength").clicked() && i != primary {
+                    if ui.radio(i == primary, "").on_hover_text(t("Primary wavelength")).clicked() && i != primary {
                         primary = i;
                         changed = true;
                     }
-                    if ui.add_enabled(system.wavelengths.len() > 1, egui::Button::new("×").small()).on_hover_text("Remove wavelength").clicked() {
+                    if ui.add_enabled(system.wavelengths.len() > 1, egui::Button::new("×").small()).on_hover_text(t("Remove wavelength")).clicked() {
                         remove = Some(i);
                     }
                 });
@@ -167,11 +168,11 @@ pub fn ui(wb: &mut Workbench, ui: &mut Ui) {
                 changed = true;
             }
             ui.horizontal(|ui| {
-                if ui.small_button("Add wavelength").clicked() {
+                if ui.small_button(t("Add wavelength")).clicked() {
                     wl.push(0.55);
                     changed = true;
                 }
-                if ui.small_button("F, d, C").on_hover_text("Use the F, d and C lines").clicked() {
+                if ui.small_button("F, d, C").on_hover_text(t("Use the F, d and C lines")).clicked() {
                     wl = FDC.to_vec();
                     primary = 1;
                     changed = true;
@@ -181,14 +182,14 @@ pub fn ui(wb: &mut Workbench, ui: &mut Ui) {
                 set = Some(json!({ "wavelengths": wl, "primaryWavelength": primary }));
             }
         });
-        section(ui, "Object", |ui| {
+        section(ui, t("Object"), |ui| {
             let mut infinite = system.object_distance.is_none();
-            if ui.checkbox(&mut infinite, "Object at infinity").changed() {
+            if ui.checkbox(&mut infinite, t("Object at infinity")).changed() {
                 set = Some(json!({ "objectDistance": if infinite { Value::Null } else { json!(1000.0) } }));
             }
             if let Some(d) = system.object_distance {
                 ui.horizontal(|ui| {
-                    ui.label("Object distance");
+                    ui.label(t("Object distance"));
                     if let Some(v) = number_field(ui, drafts, "object", Some(d), 90.0) {
                         set = Some(json!({ "objectDistance": v.filter(|v| v.is_finite() && *v > 0.0) }));
                     }
@@ -196,13 +197,13 @@ pub fn ui(wb: &mut Workbench, ui: &mut Ui) {
                 });
             }
         });
-        section(ui, "Ray Aiming", |ui| {
+        section(ui, t("Ray Aiming"), |ui| {
             let mut aiming = system.ray_aiming;
-            if ui.checkbox(&mut aiming, "Aim real rays at the stop").changed() {
+            if ui.checkbox(&mut aiming, t("Aim real rays at the stop")).changed() {
                 set = Some(json!({ "rayAiming": aiming }));
             }
         });
-        section(ui, "Title", |ui| {
+        section(ui, t("Title"), |ui| {
             let id = "name".to_string();
             let text = drafts.entry(id.clone()).or_insert_with(|| system.name.clone());
             let r = ui.add(egui::TextEdit::singleline(text).desired_width(220.0));
@@ -227,19 +228,19 @@ fn fixed(v: f64, digits: usize) -> String {
 
 pub fn system_data(wb: &mut Workbench, ui: &mut Ui) {
     let system = wb.session.system();
-    let t = wb.tokens;
+    let tk = wb.tokens;
     egui::ScrollArea::vertical().show(ui, |ui| {
         let grid = |ui: &mut Ui, id: &str, rows: Vec<(String, String, &str)>| {
             egui::Grid::new(id).num_columns(3).spacing([24.0, 3.0]).striped(true).show(ui, |ui| {
                 for (k, v, u) in rows {
                     ui.label(k);
                     ui.label(RichText::new(v).monospace());
-                    ui.label(RichText::new(u).color(t.muted));
+                    ui.label(RichText::new(u).color(tk.muted));
                     ui.end_row();
                 }
             });
         };
-        ui.heading("General");
+        ui.heading(t("General"));
         match &wb.overview {
             Some(o) => {
                 let p = &o.paraxial;
@@ -258,21 +259,21 @@ pub fn system_data(wb: &mut Workbench, ui: &mut Ui) {
                 ]);
             }
             None => {
-                ui.label(RichText::new(wb.overview_error.clone().unwrap_or_else(|| "Computing…".into())).color(t.muted));
+                ui.label(RichText::new(wb.overview_error.clone().unwrap_or_else(|| t("Computing…").into())).color(tk.muted));
             }
         }
         ui.add_space(8.0);
-        ui.heading("Object");
+        ui.heading(t("Object"));
         grid(ui, "object", vec![
             ("Object distance".into(), system.object_distance.map_or("Infinity".into(), |d| fixed(d, 4)), "mm"),
-            ("Ray aiming".into(), if system.ray_aiming { "Real".into() } else { "Paraxial".into() }, ""),
+            ("Ray aiming".into(), if system.ray_aiming { t("Real").into() } else { t("Paraxial").into() }, ""),
         ]);
         ui.add_space(8.0);
-        ui.heading("Fields");
+        ui.heading(t("Fields"));
         let unit = if system.field_type == FieldType::Angle { "deg" } else { "mm" };
         grid(ui, "fields", system.fields.iter().enumerate().map(|(i, f)| (format!("Field {}", i + 1), short(*f), unit)).collect());
         ui.add_space(8.0);
-        ui.heading("Wavelengths");
+        ui.heading(t("Wavelengths"));
         grid(
             ui,
             "wavelengths",

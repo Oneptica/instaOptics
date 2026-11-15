@@ -108,6 +108,7 @@ pub const METHODS: &[(&str, &str)] = &[
     ("ui.open", "{window}: open or focus a window"),
     ("ui.screenshot", "{path?}: PNG of the window; pngBase64 without a path"),
     ("ui.resize", "{width, height}: resize the window (logical points)"),
+    ("ui.language", "{language}: system, en, zh-CN, zh-TW, ja, ko, de, fr, es or ru"),
     ("ui.state", "theme, open windows, selected surface, file and dirty state"),
     ("ping", "pong"),
     ("control.methods", "this list"),

@@ -1,0 +1,232 @@
+# English	translation
+Rings	Anneaux
+Max freq.	Fréq. max.
+Field	Champ
+Scale	Échelle
+Wavelength	Longueur d'onde
+Frequency	Fréquence
+Range	Plage
+Frequencies	Fréquences
+Surface	Surface
+Input	Entrée
+Transmission	Transmission
+Diattenuation	Diatténuation
+Retardance	Retard
+Map	Carte
+Save as PNG image	Enregistrer en image PNG
+Export data as CSV	Exporter les données en CSV
+File	Fichier
+New System	Nouveau système
+Open…	Ouvrir…
+Open Recent	Ouvrir un fichier récent
+Samples	Exemples
+Save	Enregistrer
+Save As…	Enregistrer sous…
+Import Zemax (.zmx)…	Importer Zemax (.zmx)…
+Export Zemax (.zmx)…	Exporter Zemax (.zmx)…
+Exit	Quitter
+Edit	Édition
+Undo	Annuler
+Redo	Rétablir
+Setup	Configuration
+Analyze	Analyse
+Image Quality	Qualité d'image
+Aberrations	Aberrations
+Polarization	Polarisation
+Physical Optics	Optique physique
+Optimize	Optimiser
+Remove All Variables	Supprimer toutes les variables
+Tolerance	Tolérance
+Libraries	Bibliothèques
+Add Glass Catalog…	Ajouter un catalogue de verres…
+View	Affichage
+Language	Langue
+System Language	Langue du système
+Reset Window Layout	Réinitialiser la disposition
+Full Screen	Plein écran
+Help	Aide
+Check for Updates…	Rechercher des mises à jour…
+Source code	Code source
+Time for paraxial data, apertures and layout	Temps de calcul des données paraxiales, ouvertures et tracé
+Don't Save	Ne pas enregistrer
+Cancel	Annuler
+Aperture	Ouverture
+Entrance pupil diameter	Diamètre de la pupille d'entrée
+Image space F/#	F/# image
+Paraxial working F/#	F/# de travail paraxial
+Object space NA	ON objet
+Float by stop size	Selon la taille du diaphragme
+Fields	Champs
+Angle (deg)	Angle (°)
+Object height (mm)	Hauteur objet (mm)
+Paraxial image height (mm)	Hauteur image paraxiale (mm)
+Remove field	Supprimer le champ
+Add field	Ajouter un champ
+Wavelengths	Longueurs d'onde
+Wavelength (µm) · primary	Longueur d'onde (µm) · principale
+Primary wavelength	Longueur d'onde principale
+Remove wavelength	Supprimer la longueur d'onde
+Add wavelength	Ajouter une longueur d'onde
+Use the F, d and C lines	Utiliser les raies F, d et C
+Object	Objet
+Object at infinity	Objet à l'infini
+Object distance	Distance objet
+Ray Aiming	Visée des rayons
+Aim real rays at the stop	Viser la pupille avec les rayons réels
+Title	Titre
+General	Général
+Real	Réelle
+Paraxial	Paraxiale
+Decenter X	Décentrement X
+Decenter Y	Décentrement Y
+Tilt X	Inclinaison X
+Tilt Y	Inclinaison Y
+Tilt Z	Inclinaison Z
+Insert	Insérer
+Insert a surface before (Insert)	Insérer une surface avant (Inser)
+Insert After	Insérer après
+Insert a surface after (Ctrl+Insert)	Insérer une surface après (Ctrl+Inser)
+Delete	Supprimer
+Delete the surface (Delete)	Supprimer la surface (Suppr)
+Make Stop	Définir comme diaphragme
+Variable	Variable
+Toggle the selected cell as an optimization variable (Ctrl+T)	Basculer la cellule comme variable d'optimisation (Ctrl+T)
+Coordinate Break	Rupture de coordonnées
+Turn the surface into a coordinate break, or back	Transformer la surface en rupture de coordonnées, ou l'inverse
+Image	Image
+Surf	Surf.
+Type	Type
+Coord Break	Rupture coord.
+Even Asphere	Asphère paire
+Standard	Standard
+Unknown material	Matériau inconnu
+Stop	Arrêter
+Cycles	Cycles
+Merit Function	Fonction de mérite
+Criterion	Critère
+RMS spot radius (centroid)	Rayon RMS du spot (barycentre)
+Pupil rings	Anneaux de pupille
+Targets and Constraints	Cibles et contraintes
+Effective focal length	Focale effective
+Max total track	Longueur totale max.
+Min back focus	Tirage min.
+Max chief ray angle	Angle max. du rayon principal
+Min glass centre	Épaisseur min. du verre au centre
+Min glass edge	Épaisseur min. du verre au bord
+Min air gap	Lame d'air min.
+Add	Ajouter
+Surf / Field	Surf. / Champ
+Rel	Rel.
+Target	Cible
+Weight	Poids
+Value	Valeur
+All	Tous
+Radius	Rayon
+Thickness	Épaisseur
+Conic	Conique
+Sensitivity	Sensibilité
+Monte Carlo	Monte-Carlo
+Tolerances	Tolérances
+Surface decenter	Décentrement de surface
+Surface tilt	Inclinaison de surface
+Index nd	Indice nd
+Abbe vd	Constringence vd
+Analysis	Analyse
+Compensator	Compensateur
+Back focus	Tirage
+Monte Carlo trials	Tirages Monte-Carlo
+Random seed	Graine aléatoire
+Criterion: polychromatic RMS spot radius about each field's centroid. Monte Carlo draws each parameter from a normal distribution with 2σ = tolerance.	Critère : rayon RMS polychromatique du spot autour du barycentre de chaque champ. Monte-Carlo tire chaque paramètre d'une loi normale avec 2σ = tolérance.
+Parameter	Paramètre
+±Tol	±Tol.
+Δ at + (µm)	Δ à + (µm)
+Δ at − (µm)	Δ à − (µm)
+Worst (µm)	Pire (µm)
+Propagate the beam through the system	Propager le faisceau à travers le système
+Side view x–z	Vue latérale x–z
+Side view y–z	Vue latérale y–z
+Beam radius	Rayon du faisceau
+Cross section	Section
+Table	Tableau
+Plane	Plan
+Beam	Faisceau
+Gaussian	Gaussien
+On axis	Sur l'axe
+Waist radius (1/e²)	Rayon au col (1/e²)
+Waist position	Position du col
+Order	Ordre
+Curvature radius	Rayon de courbure
+Grid samples	Échantillons de grille
+Fibre mode radius	Rayon de mode de la fibre
+Include wavefront aberration	Inclure l'aberration du front d'onde
+Clip at fixed surface apertures	Couper aux ouvertures fixes des surfaces
+The lens or the settings changed since this result.	L'objectif ou les réglages ont changé depuis ce résultat.
+Propagating…	Propagation…
+Set up a source and press Run.	Configurez une source et appuyez sur Exécuter.
+Test chart	Mire
+Load Image…	Charger une image…
+Test Chart	Mire
+Simulating…	Simulation…
+Simulate	Simuler
+Field samples	Échantillons de champ
+Diffraction	Diffraction
+Pixel pitch (µm, blank: fit)	Pas des pixels (µm, vide : ajusté)
+Add Configurations	Ajouter des configurations
+Surface parameters take a different value in each configuration: zoom positions, scan angles, tolerance cases	Les paramètres de surface prennent une valeur par configuration : positions de zoom, angles de balayage, cas de tolérance
+Add Configuration	Ajouter une configuration
+Remove Configuration	Supprimer la configuration
+Remove the active configuration	Supprimer la configuration active
+Add Row	Ajouter une ligne
+Make this the active configuration	Rendre cette configuration active
+Remove row	Supprimer la ligne
+Add Catalog…	Ajouter un catalogue…
+Add OpticStudio glass catalogs (.agf)	Ajouter des catalogues de verres OpticStudio (.agf)
+Source	Source
+Select a surface	Sélectionnez une surface
+Use the selected glass for the surface selected in the Lens Data editor	Utiliser le verre choisi pour la surface sélectionnée dans l'éditeur de données
+Catalogs	Catalogues
+Remove this catalog	Supprimer ce catalogue
+Name	Nom
+Catalog	Catalogue
+Formula	Formule
+Range (µm)	Plage (µm)
+System Explorer	Explorateur du système
+Lens Data	Données de l'objectif
+System Data	Données du système
+Multi-Configuration	Multi-configuration
+2D Layout	Tracé 2D
+3D Layout	Tracé 3D
+Spot Diagram	Diagramme de spot
+Ray Fan	Éventail de rayons
+FFT MTF	FTM FFT
+FFT PSF	FEP FFT
+Wavefront Map	Carte du front d'onde
+Through-Focus MTF	FTM en défocalisation
+MTF vs Field	FTM selon le champ
+Footprint Diagram	Empreinte du faisceau
+Field Curvature / Distortion	Courbure de champ / Distorsion
+Seidel Diagram	Diagramme de Seidel
+Chromatic Focal Shift	Décalage focal chromatique
+Relative Illumination	Éclairement relatif
+Coating	Traitement
+Polarization Maps	Cartes de polarisation
+Transmission vs Field	Transmission selon le champ
+Beam Propagation	Propagation de faisceau
+Image Simulation	Simulation d'image
+Optimization	Optimisation
+Tolerancing	Analyse de tolérances
+Glass Catalogs	Catalogues de verres
+Material	Matériau
+Solve	Résolution
+Clear Semi-Dia	Demi-diam. utile
+Total track	Longueur totale
+Image height	Hauteur image
+Chief ray angle	Angle du rayon principal
+Distortion	Distorsion
+RMS spot radius	Rayon RMS du spot
+Search glass name	Rechercher un verre
+Computing…	Calcul…
+Cutoff	Coupure
+showing the last valid result	dernier résultat valide affiché
+stop	diaphragme
+surfaces	surfaces

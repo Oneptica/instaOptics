@@ -8,6 +8,8 @@ use crate::theme::ThemeChoice;
 #[serde(default)]
 pub struct Prefs {
     pub theme: ThemeChoice,
+    /// Interface language code (see i18n::LANGUAGES), or "system".
+    pub language: String,
     /// Most recent first.
     pub recent: Vec<String>,
     /// The docked window layout as JSON (craft-ui docking workspace).

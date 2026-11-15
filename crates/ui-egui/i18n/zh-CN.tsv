@@ -1,0 +1,232 @@
+# English	translation
+Rings	环数
+Max freq.	最大频率
+Field	视场
+Scale	标尺
+Wavelength	波长
+Frequency	频率
+Range	范围
+Frequencies	频率
+Surface	面
+Input	入射偏振
+Transmission	透过率
+Diattenuation	二向衰减
+Retardance	相位延迟
+Map	图
+Save as PNG image	保存为 PNG 图像
+Export data as CSV	导出数据为 CSV
+File	文件
+New System	新建系统
+Open…	打开…
+Open Recent	最近打开
+Samples	示例镜头
+Save	保存
+Save As…	另存为…
+Import Zemax (.zmx)…	导入 Zemax (.zmx)…
+Export Zemax (.zmx)…	导出 Zemax (.zmx)…
+Exit	退出
+Edit	编辑
+Undo	撤销
+Redo	重做
+Setup	设置
+Analyze	分析
+Image Quality	像质
+Aberrations	像差
+Polarization	偏振
+Physical Optics	物理光学
+Optimize	优化
+Remove All Variables	移除所有变量
+Tolerance	公差
+Libraries	库
+Add Glass Catalog…	添加玻璃库…
+View	视图
+Language	语言
+System Language	跟随系统
+Reset Window Layout	重置窗口布局
+Full Screen	全屏
+Help	帮助
+Check for Updates…	检查更新…
+Source code	源代码
+Time for paraxial data, apertures and layout	计算近轴数据、孔径和布局的时间
+Don't Save	不保存
+Cancel	取消
+Aperture	孔径
+Entrance pupil diameter	入瞳直径
+Image space F/#	像方 F/#
+Paraxial working F/#	近轴工作 F/#
+Object space NA	物方数值孔径
+Float by stop size	按光阑尺寸浮动
+Fields	视场
+Angle (deg)	角度 (°)
+Object height (mm)	物高 (mm)
+Paraxial image height (mm)	近轴像高 (mm)
+Remove field	删除视场
+Add field	添加视场
+Wavelengths	波长
+Wavelength (µm) · primary	波长 (µm) · 主波长
+Primary wavelength	主波长
+Remove wavelength	删除波长
+Add wavelength	添加波长
+Use the F, d and C lines	使用 F、d、C 谱线
+Object	物方
+Object at infinity	物在无穷远
+Object distance	物距
+Ray Aiming	光线瞄准
+Aim real rays at the stop	实际光线瞄准光阑
+Title	标题
+General	概要
+Real	实际
+Paraxial	近轴
+Decenter X	X 偏心
+Decenter Y	Y 偏心
+Tilt X	X 倾斜
+Tilt Y	Y 倾斜
+Tilt Z	Z 倾斜
+Insert	插入
+Insert a surface before (Insert)	在前面插入面 (Insert)
+Insert After	在后面插入
+Insert a surface after (Ctrl+Insert)	在后面插入面 (Ctrl+Insert)
+Delete	删除
+Delete the surface (Delete)	删除该面 (Delete)
+Make Stop	设为光阑
+Variable	变量
+Toggle the selected cell as an optimization variable (Ctrl+T)	将所选单元格设为或取消优化变量 (Ctrl+T)
+Coordinate Break	坐标断点
+Turn the surface into a coordinate break, or back	将该面改为坐标断点，或改回
+Image	像面
+Surf	面
+Type	类型
+Coord Break	坐标断点
+Even Asphere	偶次非球面
+Standard	标准面
+Unknown material	未知材料
+Stop	停止
+Cycles	循环次数
+Merit Function	评价函数
+Criterion	评价标准
+RMS spot radius (centroid)	RMS 点列半径 (质心)
+Pupil rings	光瞳环数
+Targets and Constraints	目标与约束
+Effective focal length	有效焦距
+Max total track	最大总长
+Min back focus	最小后截距
+Max chief ray angle	最大主光线角
+Min glass centre	最小玻璃中心厚度
+Min glass edge	最小玻璃边缘厚度
+Min air gap	最小空气间隔
+Add	添加
+Surf / Field	面 / 视场
+Rel	关系
+Target	目标值
+Weight	权重
+Value	当前值
+All	全部
+Radius	半径
+Thickness	厚度
+Conic	圆锥系数
+Sensitivity	灵敏度
+Monte Carlo	蒙特卡洛
+Tolerances	公差
+Surface decenter	面偏心
+Surface tilt	面倾斜
+Index nd	折射率 nd
+Abbe vd	阿贝数 vd
+Analysis	分析
+Compensator	补偿器
+Back focus	后截距
+Monte Carlo trials	蒙特卡洛次数
+Random seed	随机种子
+Criterion: polychromatic RMS spot radius about each field's centroid. Monte Carlo draws each parameter from a normal distribution with 2σ = tolerance.	评价标准：各视场相对质心的多色 RMS 点列半径。蒙特卡洛按正态分布抽取每个参数，2σ 等于公差。
+Parameter	参数
+±Tol	±公差
+Δ at + (µm)	+ 时 Δ (µm)
+Δ at − (µm)	− 时 Δ (µm)
+Worst (µm)	最差 (µm)
+Propagate the beam through the system	让光束通过系统传播
+Side view x–z	侧视图 x–z
+Side view y–z	侧视图 y–z
+Beam radius	光束半径
+Cross section	截面
+Table	表格
+Plane	平面
+Beam	光束
+Gaussian	高斯
+On axis	轴上
+Waist radius (1/e²)	束腰半径 (1/e²)
+Waist position	束腰位置
+Order	阶数
+Curvature radius	曲率半径
+Grid samples	网格采样
+Fibre mode radius	光纤模场半径
+Include wavefront aberration	计入波前像差
+Clip at fixed surface apertures	按固定面孔径截断
+The lens or the settings changed since this result.	该结果之后镜头或设置已改变。
+Propagating…	正在传播…
+Set up a source and press Run.	设置光源后点运行。
+Test chart	测试图
+Load Image…	加载图像…
+Test Chart	测试图
+Simulating…	正在仿真…
+Simulate	仿真
+Field samples	视场采样
+Diffraction	衍射
+Pixel pitch (µm, blank: fit)	像素间距 (µm，留空：自动)
+Add Configurations	添加多重结构
+Surface parameters take a different value in each configuration: zoom positions, scan angles, tolerance cases	每个结构中面参数可取不同值：变焦位置、扫描角度、公差情形
+Add Configuration	添加结构
+Remove Configuration	删除结构
+Remove the active configuration	删除当前结构
+Add Row	添加行
+Make this the active configuration	设为当前结构
+Remove row	删除行
+Add Catalog…	添加玻璃库…
+Add OpticStudio glass catalogs (.agf)	添加 OpticStudio 玻璃库 (.agf)
+Source	来源
+Select a surface	请选择一个面
+Use the selected glass for the surface selected in the Lens Data editor	将所选玻璃用于镜头数据编辑器中选中的面
+Catalogs	玻璃库
+Remove this catalog	删除此玻璃库
+Name	名称
+Catalog	玻璃库
+Formula	色散公式
+Range (µm)	范围 (µm)
+System Explorer	系统浏览器
+Lens Data	镜头数据
+System Data	系统数据
+Multi-Configuration	多重结构
+2D Layout	二维布局图
+3D Layout	三维布局图
+Spot Diagram	点列图
+Ray Fan	光线像差曲线
+FFT MTF	FFT MTF
+FFT PSF	FFT PSF
+Wavefront Map	波前图
+Through-Focus MTF	离焦 MTF
+MTF vs Field	MTF 随视场
+Footprint Diagram	光斑足迹图
+Field Curvature / Distortion	场曲 / 畸变
+Seidel Diagram	赛德尔像差图
+Chromatic Focal Shift	色焦移
+Relative Illumination	相对照度
+Coating	膜层
+Polarization Maps	偏振分布图
+Transmission vs Field	透过率随视场
+Beam Propagation	光束传播
+Image Simulation	成像仿真
+Optimization	优化
+Tolerancing	公差分析
+Glass Catalogs	玻璃库
+Material	材料
+Solve	求解
+Clear Semi-Dia	通光半口径
+Total track	总长
+Image height	像高
+Chief ray angle	主光线角
+Distortion	畸变
+RMS spot radius	RMS 点列半径
+Search glass name	搜索玻璃名称
+Computing…	正在计算…
+Cutoff	截止频率
+showing the last valid result	显示上一次有效结果
+stop	光阑
+surfaces	个面

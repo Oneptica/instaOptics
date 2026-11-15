@@ -79,6 +79,11 @@ impl Panel {
     }
 
     pub fn title(self) -> &'static str {
+        crate::i18n::t(self.title_en())
+    }
+
+    /// The English title: the translation key and the export file name.
+    pub fn title_en(self) -> &'static str {
         match self {
             Panel::SystemExplorer => "System Explorer",
             Panel::LensData => "Lens Data",
@@ -144,6 +149,6 @@ impl Panel {
 
     /// File name stem for exports.
     pub fn file_stem(self) -> String {
-        self.title().to_lowercase().replace([' ', '/'], "-").replace("--", "-")
+        self.title_en().to_lowercase().replace([' ', '/'], "-").replace("--", "-")
     }
 }

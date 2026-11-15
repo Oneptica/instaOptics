@@ -1,0 +1,232 @@
+# English	translation
+Rings	링 수
+Max freq.	최대 주파수
+Field	필드
+Scale	스케일
+Wavelength	파장
+Frequency	주파수
+Range	범위
+Frequencies	주파수
+Surface	면
+Input	입사 편광
+Transmission	투과율
+Diattenuation	이색 감쇠
+Retardance	위상 지연
+Map	맵
+Save as PNG image	PNG 이미지로 저장
+Export data as CSV	데이터를 CSV로 내보내기
+File	파일
+New System	새 시스템
+Open…	열기…
+Open Recent	최근 파일
+Samples	예제 렌즈
+Save	저장
+Save As…	다른 이름으로 저장…
+Import Zemax (.zmx)…	Zemax (.zmx) 가져오기…
+Export Zemax (.zmx)…	Zemax (.zmx) 내보내기…
+Exit	종료
+Edit	편집
+Undo	실행 취소
+Redo	다시 실행
+Setup	설정
+Analyze	해석
+Image Quality	이미지 품질
+Aberrations	수차
+Polarization	편광
+Physical Optics	물리 광학
+Optimize	최적화
+Remove All Variables	모든 변수 제거
+Tolerance	공차
+Libraries	라이브러리
+Add Glass Catalog…	유리 카탈로그 추가…
+View	보기
+Language	언어
+System Language	시스템 언어
+Reset Window Layout	창 배치 초기화
+Full Screen	전체 화면
+Help	도움말
+Check for Updates…	업데이트 확인…
+Source code	소스 코드
+Time for paraxial data, apertures and layout	근축 데이터, 구경, 레이아웃 계산 시간
+Don't Save	저장 안 함
+Cancel	취소
+Aperture	구경
+Entrance pupil diameter	입사동 직경
+Image space F/#	상공간 F/#
+Paraxial working F/#	근축 유효 F/#
+Object space NA	물체공간 NA
+Float by stop size	조리개 크기로 결정
+Fields	필드
+Angle (deg)	각도 (°)
+Object height (mm)	물체 높이 (mm)
+Paraxial image height (mm)	근축 상 높이 (mm)
+Remove field	필드 삭제
+Add field	필드 추가
+Wavelengths	파장
+Wavelength (µm) · primary	파장 (µm) · 주파장
+Primary wavelength	주파장
+Remove wavelength	파장 삭제
+Add wavelength	파장 추가
+Use the F, d and C lines	F, d, C 선 사용
+Object	물체
+Object at infinity	물체 무한원
+Object distance	물체 거리
+Ray Aiming	광선 조준
+Aim real rays at the stop	실제 광선을 조리개에 조준
+Title	제목
+General	일반
+Real	실제
+Paraxial	근축
+Decenter X	X 편심
+Decenter Y	Y 편심
+Tilt X	X 기울기
+Tilt Y	Y 기울기
+Tilt Z	Z 기울기
+Insert	삽입
+Insert a surface before (Insert)	앞에 면 삽입 (Insert)
+Insert After	뒤에 삽입
+Insert a surface after (Ctrl+Insert)	뒤에 면 삽입 (Ctrl+Insert)
+Delete	삭제
+Delete the surface (Delete)	면 삭제 (Delete)
+Make Stop	조리개로 설정
+Variable	변수
+Toggle the selected cell as an optimization variable (Ctrl+T)	선택한 셀을 최적화 변수로 전환 (Ctrl+T)
+Coordinate Break	좌표 분리
+Turn the surface into a coordinate break, or back	면을 좌표 분리로 전환하거나 되돌리기
+Image	상면
+Surf	면
+Type	유형
+Coord Break	좌표 분리
+Even Asphere	짝수 비구면
+Standard	표준
+Unknown material	알 수 없는 재료
+Stop	중지
+Cycles	사이클
+Merit Function	평가 함수
+Criterion	평가 기준
+RMS spot radius (centroid)	RMS 스폿 반경 (중심)
+Pupil rings	동공 링 수
+Targets and Constraints	목표와 제약
+Effective focal length	유효 초점 거리
+Max total track	최대 전장
+Min back focus	최소 백 포커스
+Max chief ray angle	최대 주광선 각
+Min glass centre	최소 유리 중심 두께
+Min glass edge	최소 유리 가장자리 두께
+Min air gap	최소 공기 간격
+Add	추가
+Surf / Field	면 / 필드
+Rel	관계
+Target	목표값
+Weight	가중치
+Value	값
+All	전체
+Radius	반경
+Thickness	두께
+Conic	코닉 계수
+Sensitivity	감도
+Monte Carlo	몬테카를로
+Tolerances	공차
+Surface decenter	면 편심
+Surface tilt	면 기울기
+Index nd	굴절률 nd
+Abbe vd	아베수 vd
+Analysis	해석
+Compensator	보상자
+Back focus	백 포커스
+Monte Carlo trials	몬테카를로 시행 수
+Random seed	난수 시드
+Criterion: polychromatic RMS spot radius about each field's centroid. Monte Carlo draws each parameter from a normal distribution with 2σ = tolerance.	평가 기준: 각 필드 중심에 대한 다색 RMS 스폿 반경. 몬테카를로는 각 파라미터를 2σ = 공차인 정규 분포에서 추출합니다.
+Parameter	파라미터
+±Tol	±공차
+Δ at + (µm)	+ 시 Δ (µm)
+Δ at − (µm)	− 시 Δ (µm)
+Worst (µm)	최악 (µm)
+Propagate the beam through the system	빔을 시스템에 통과시켜 전파
+Side view x–z	측면도 x–z
+Side view y–z	측면도 y–z
+Beam radius	빔 반경
+Cross section	단면
+Table	표
+Plane	평면
+Beam	빔
+Gaussian	가우시안
+On axis	축상
+Waist radius (1/e²)	웨이스트 반경 (1/e²)
+Waist position	웨이스트 위치
+Order	차수
+Curvature radius	곡률 반경
+Grid samples	격자 샘플 수
+Fibre mode radius	광섬유 모드 반경
+Include wavefront aberration	파면 수차 포함
+Clip at fixed surface apertures	고정 면 구경에서 자르기
+The lens or the settings changed since this result.	이 결과 이후 렌즈 또는 설정이 바뀌었습니다.
+Propagating…	전파 중…
+Set up a source and press Run.	광원을 설정하고 실행을 누르세요.
+Test chart	테스트 차트
+Load Image…	이미지 불러오기…
+Test Chart	테스트 차트
+Simulating…	시뮬레이션 중…
+Simulate	시뮬레이션
+Field samples	필드 샘플 수
+Diffraction	회절
+Pixel pitch (µm, blank: fit)	픽셀 피치 (µm, 빈칸: 자동)
+Add Configurations	다중 구성 추가
+Surface parameters take a different value in each configuration: zoom positions, scan angles, tolerance cases	구성마다 면 파라미터가 다른 값을 가집니다: 줌 위치, 스캔 각도, 공차 경우
+Add Configuration	구성 추가
+Remove Configuration	구성 삭제
+Remove the active configuration	활성 구성 삭제
+Add Row	행 추가
+Make this the active configuration	활성 구성으로 설정
+Remove row	행 삭제
+Add Catalog…	카탈로그 추가…
+Add OpticStudio glass catalogs (.agf)	OpticStudio 유리 카탈로그 (.agf) 추가
+Source	출처
+Select a surface	면 선택
+Use the selected glass for the surface selected in the Lens Data editor	선택한 유리를 렌즈 데이터 편집기에서 선택한 면에 사용
+Catalogs	카탈로그
+Remove this catalog	이 카탈로그 삭제
+Name	이름
+Catalog	카탈로그
+Formula	분산식
+Range (µm)	범위 (µm)
+System Explorer	시스템 탐색기
+Lens Data	렌즈 데이터
+System Data	시스템 데이터
+Multi-Configuration	다중 구성
+2D Layout	2D 레이아웃
+3D Layout	3D 레이아웃
+Spot Diagram	스폿 다이어그램
+Ray Fan	광선 팬
+FFT MTF	FFT MTF
+FFT PSF	FFT PSF
+Wavefront Map	파면 맵
+Through-Focus MTF	스루 포커스 MTF
+MTF vs Field	필드별 MTF
+Footprint Diagram	풋프린트 다이어그램
+Field Curvature / Distortion	상면 만곡 / 왜곡
+Seidel Diagram	자이델 수차도
+Chromatic Focal Shift	색 초점 이동
+Relative Illumination	상대 조도
+Coating	코팅
+Polarization Maps	편광 맵
+Transmission vs Field	필드별 투과율
+Beam Propagation	빔 전파
+Image Simulation	이미지 시뮬레이션
+Optimization	최적화
+Tolerancing	공차 해석
+Glass Catalogs	유리 카탈로그
+Material	재료
+Solve	솔브
+Clear Semi-Dia	유효 반구경
+Total track	전장
+Image height	상 높이
+Chief ray angle	주광선 각
+Distortion	왜곡
+RMS spot radius	RMS 스폿 반경
+Search glass name	유리 이름 검색
+Computing…	계산 중…
+Cutoff	차단 주파수
+showing the last valid result	마지막 유효 결과 표시 중
+stop	조리개
+surfaces	면

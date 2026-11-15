@@ -1,0 +1,232 @@
+# English	translation
+Rings	リング数
+Max freq.	最大周波数
+Field	視野
+Scale	スケール
+Wavelength	波長
+Frequency	周波数
+Range	範囲
+Frequencies	周波数
+Surface	面
+Input	入射偏光
+Transmission	透過率
+Diattenuation	二色性減衰
+Retardance	リターダンス
+Map	マップ
+Save as PNG image	PNG 画像として保存
+Export data as CSV	データを CSV で書き出す
+File	ファイル
+New System	新規システム
+Open…	開く…
+Open Recent	最近使ったファイル
+Samples	サンプルレンズ
+Save	保存
+Save As…	名前を付けて保存…
+Import Zemax (.zmx)…	Zemax (.zmx) を読み込む…
+Export Zemax (.zmx)…	Zemax (.zmx) に書き出す…
+Exit	終了
+Edit	編集
+Undo	元に戻す
+Redo	やり直す
+Setup	セットアップ
+Analyze	解析
+Image Quality	像質
+Aberrations	収差
+Polarization	偏光
+Physical Optics	物理光学
+Optimize	最適化
+Remove All Variables	すべての変数を解除
+Tolerance	公差
+Libraries	ライブラリ
+Add Glass Catalog…	ガラスカタログを追加…
+View	表示
+Language	言語
+System Language	システムの言語
+Reset Window Layout	ウィンドウ配置をリセット
+Full Screen	全画面表示
+Help	ヘルプ
+Check for Updates…	更新を確認…
+Source code	ソースコード
+Time for paraxial data, apertures and layout	近軸データ・開口・レイアウトの計算時間
+Don't Save	保存しない
+Cancel	キャンセル
+Aperture	開口
+Entrance pupil diameter	入射瞳径
+Image space F/#	像空間 F/#
+Paraxial working F/#	近軸実効 F/#
+Object space NA	物体空間 NA
+Float by stop size	絞り径で決定
+Fields	視野
+Angle (deg)	角度 (°)
+Object height (mm)	物体高 (mm)
+Paraxial image height (mm)	近軸像高 (mm)
+Remove field	視野を削除
+Add field	視野を追加
+Wavelengths	波長
+Wavelength (µm) · primary	波長 (µm) · 主波長
+Primary wavelength	主波長
+Remove wavelength	波長を削除
+Add wavelength	波長を追加
+Use the F, d and C lines	F・d・C 線を使う
+Object	物体
+Object at infinity	物体は無限遠
+Object distance	物体距離
+Ray Aiming	光線エイミング
+Aim real rays at the stop	実光線を絞りに向ける
+Title	タイトル
+General	一般
+Real	実光線
+Paraxial	近軸
+Decenter X	X 偏心
+Decenter Y	Y 偏心
+Tilt X	X 傾き
+Tilt Y	Y 傾き
+Tilt Z	Z 傾き
+Insert	挿入
+Insert a surface before (Insert)	前に面を挿入 (Insert)
+Insert After	後に挿入
+Insert a surface after (Ctrl+Insert)	後に面を挿入 (Ctrl+Insert)
+Delete	削除
+Delete the surface (Delete)	面を削除 (Delete)
+Make Stop	絞りにする
+Variable	変数
+Toggle the selected cell as an optimization variable (Ctrl+T)	選択したセルを最適化変数に切り替え (Ctrl+T)
+Coordinate Break	座標ブレーク
+Turn the surface into a coordinate break, or back	面を座標ブレークにする、または戻す
+Image	像面
+Surf	面
+Type	タイプ
+Coord Break	座標ブレーク
+Even Asphere	偶数次非球面
+Standard	標準面
+Unknown material	不明な材料
+Stop	停止
+Cycles	サイクル
+Merit Function	メリット関数
+Criterion	評価基準
+RMS spot radius (centroid)	RMS スポット半径 (重心)
+Pupil rings	瞳リング数
+Targets and Constraints	目標と制約
+Effective focal length	有効焦点距離
+Max total track	最大全長
+Min back focus	最小バックフォーカス
+Max chief ray angle	最大主光線角
+Min glass centre	最小ガラス中心厚
+Min glass edge	最小ガラス縁厚
+Min air gap	最小空気間隔
+Add	追加
+Surf / Field	面 / 視野
+Rel	関係
+Target	目標値
+Weight	ウェイト
+Value	値
+All	すべて
+Radius	曲率半径
+Thickness	厚さ
+Conic	コーニック係数
+Sensitivity	感度
+Monte Carlo	モンテカルロ
+Tolerances	公差
+Surface decenter	面偏心
+Surface tilt	面傾き
+Index nd	屈折率 nd
+Abbe vd	アッベ数 vd
+Analysis	解析
+Compensator	補償子
+Back focus	バックフォーカス
+Monte Carlo trials	モンテカルロ試行数
+Random seed	乱数シード
+Criterion: polychromatic RMS spot radius about each field's centroid. Monte Carlo draws each parameter from a normal distribution with 2σ = tolerance.	評価基準：各視野の重心に対する多色 RMS スポット半径。モンテカルロは各パラメータを 2σ = 公差の正規分布から抽出します。
+Parameter	パラメータ
+±Tol	±公差
+Δ at + (µm)	+ 側 Δ (µm)
+Δ at − (µm)	− 側 Δ (µm)
+Worst (µm)	最悪 (µm)
+Propagate the beam through the system	ビームを系に通して伝搬
+Side view x–z	側面図 x–z
+Side view y–z	側面図 y–z
+Beam radius	ビーム半径
+Cross section	断面
+Table	表
+Plane	面
+Beam	ビーム
+Gaussian	ガウシアン
+On axis	軸上
+Waist radius (1/e²)	ウエスト半径 (1/e²)
+Waist position	ウエスト位置
+Order	次数
+Curvature radius	曲率半径
+Grid samples	グリッドサンプル数
+Fibre mode radius	ファイバーモード半径
+Include wavefront aberration	波面収差を含める
+Clip at fixed surface apertures	固定開口でクリップ
+The lens or the settings changed since this result.	この結果の後にレンズまたは設定が変更されました。
+Propagating…	伝搬中…
+Set up a source and press Run.	光源を設定して実行を押してください。
+Test chart	テストチャート
+Load Image…	画像を読み込む…
+Test Chart	テストチャート
+Simulating…	シミュレーション中…
+Simulate	シミュレーション
+Field samples	視野サンプル数
+Diffraction	回折
+Pixel pitch (µm, blank: fit)	画素ピッチ (µm、空欄: 自動)
+Add Configurations	マルチコンフィグを追加
+Surface parameters take a different value in each configuration: zoom positions, scan angles, tolerance cases	面パラメータが構成ごとに異なる値を取ります: ズーム位置、走査角、公差ケース
+Add Configuration	構成を追加
+Remove Configuration	構成を削除
+Remove the active configuration	アクティブな構成を削除
+Add Row	行を追加
+Make this the active configuration	アクティブな構成にする
+Remove row	行を削除
+Add Catalog…	カタログを追加…
+Add OpticStudio glass catalogs (.agf)	OpticStudio ガラスカタログ (.agf) を追加
+Source	ソース
+Select a surface	面を選択
+Use the selected glass for the surface selected in the Lens Data editor	選択したガラスをレンズデータエディタで選択中の面に使う
+Catalogs	カタログ
+Remove this catalog	このカタログを削除
+Name	名前
+Catalog	カタログ
+Formula	分散式
+Range (µm)	範囲 (µm)
+System Explorer	システムエクスプローラ
+Lens Data	レンズデータ
+System Data	システムデータ
+Multi-Configuration	マルチコンフィグ
+2D Layout	2D レイアウト
+3D Layout	3D レイアウト
+Spot Diagram	スポットダイアグラム
+Ray Fan	光線収差図
+FFT MTF	FFT MTF
+FFT PSF	FFT PSF
+Wavefront Map	波面マップ
+Through-Focus MTF	スルーフォーカス MTF
+MTF vs Field	視野別 MTF
+Footprint Diagram	フットプリント図
+Field Curvature / Distortion	像面湾曲 / 歪曲
+Seidel Diagram	ザイデル収差図
+Chromatic Focal Shift	色焦点シフト
+Relative Illumination	周辺光量比
+Coating	コーティング
+Polarization Maps	偏光マップ
+Transmission vs Field	視野別透過率
+Beam Propagation	ビーム伝搬
+Image Simulation	像シミュレーション
+Optimization	最適化
+Tolerancing	公差解析
+Glass Catalogs	ガラスカタログ
+Material	材料
+Solve	ソルブ
+Clear Semi-Dia	有効半径
+Total track	全長
+Image height	像高
+Chief ray angle	主光線角
+Distortion	歪曲
+RMS spot radius	RMS スポット半径
+Search glass name	ガラス名で検索
+Computing…	計算中…
+Cutoff	カットオフ
+showing the last valid result	前回の有効な結果を表示中
+stop	絞り
+surfaces	面

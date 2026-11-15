@@ -1,6 +1,7 @@
 //! Lens Data editor: one row per surface, as in OpticStudio. Arrows move, Enter or F2 or typing edits, Tab moves
 //! across, Insert adds a surface (Ctrl+Insert after), Delete removes one, Ctrl+T toggles a variable.
 
+use crate::i18n::t;
 use egui::{Align, Color32, Key, Layout, Modifiers, RichText, Sense, Ui, Vec2};
 use instaoptics_core::configs::{ConfigParameter, Parameter};
 use instaoptics_engine::edit::{self, VariableKey};
@@ -37,11 +38,11 @@ const COLUMNS: [(Col, &str, f32); 11] = [
 /// On a coordinate break the parameter columns hold its decenters and tilts.
 fn cb_label(col: Col) -> Option<&'static str> {
     Some(match col {
-        Col::Conic => "Decenter X",
-        Col::A(0) => "Decenter Y",
-        Col::A(1) => "Tilt X",
-        Col::A(2) => "Tilt Y",
-        Col::A(3) => "Tilt Z",
+        Col::Conic => t("Decenter X"),
+        Col::A(0) => t("Decenter Y"),
+        Col::A(1) => t("Tilt X"),
+        Col::A(2) => t("Tilt Y"),
+        Col::A(3) => t("Tilt Z"),
         _ => return None,
     })
 }
@@ -239,7 +240,7 @@ fn apply(wb: &mut Workbench, row: usize, col: Col, text: &str) -> bool {
 }
 
 pub fn ui(wb: &mut Workbench, ui: &mut Ui) {
-    let t = wb.tokens;
+    let tk = wb.tokens;
     let n = wb.session.system().surfaces.len();
     let rows = n + 2;
     let st = &mut wb.lde;
@@ -250,40 +251,40 @@ pub fn ui(wb: &mut Workbench, ui: &mut Ui) {
     let mut command: Option<(&str, Value)> = None;
     ui.horizontal(|ui| {
         let at = surface.map_or(if row == 0 { 1 } else { n + 1 }, |s| s + 1);
-        if ui.small_button("Insert").on_hover_text("Insert a surface before (Insert)").clicked() {
+        if ui.small_button(t("Insert")).on_hover_text(t("Insert a surface before (Insert)")).clicked() {
             command = Some(("surface.insert", json!({ "at": at })));
         }
-        if ui.small_button("Insert After").on_hover_text("Insert a surface after (Ctrl+Insert)").clicked() {
+        if ui.small_button(t("Insert After")).on_hover_text(t("Insert a surface after (Ctrl+Insert)")).clicked() {
             command = Some(("surface.insert", json!({ "at": (at + 1).min(n + 1) })));
         }
-        if ui.add_enabled(surface.is_some() && n > 1, egui::Button::new("Delete").small()).on_hover_text("Delete the surface (Delete)").clicked() {
+        if ui.add_enabled(surface.is_some() && n > 1, egui::Button::new(t("Delete")).small()).on_hover_text(t("Delete the surface (Delete)")).clicked() {
             command = Some(("surface.delete", json!({ "surface": at })));
         }
         ui.separator();
         let stop = wb.session.system().stop_index;
-        if ui.add_enabled(surface.is_some_and(|s| s != stop), egui::Button::new("Make Stop").small()).clicked() {
+        if ui.add_enabled(surface.is_some_and(|s| s != stop), egui::Button::new(t("Make Stop")).small()).clicked() {
             command = Some(("stop", json!({ "surface": at })));
         }
         let key = variable_key(COLUMNS[col].0).filter(|_| surface.is_some());
-        if ui.add_enabled(key.is_some(), egui::Button::new("Variable").small()).on_hover_text("Toggle the selected cell as an optimization variable (Ctrl+T)").clicked() {
+        if ui.add_enabled(key.is_some(), egui::Button::new(t("Variable")).small()).on_hover_text(t("Toggle the selected cell as an optimization variable (Ctrl+T)")).clicked() {
             command = Some(("variable", json!({ "surface": at, "parameter": param_name(COLUMNS[col].0) })));
         }
-        if ui.add_enabled(surface.is_some(), egui::Button::new("Coordinate Break").small()).on_hover_text("Turn the surface into a coordinate break, or back").clicked() {
+        if ui.add_enabled(surface.is_some(), egui::Button::new(t("Coordinate Break")).small()).on_hover_text(t("Turn the surface into a coordinate break, or back")).clicked() {
             command = Some(("coordbreak", json!({ "surface": at })));
         }
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             let system = wb.session.system();
             let mut info = match surface {
-                None if row == 0 => "Object".to_string(),
-                None => "Image".to_string(),
-                Some(s) => format!("Surface {}{}", s + 1, if s == system.stop_index { " (stop)" } else { "" }),
+                None if row == 0 => t("Object").to_string(),
+                None => t("Image").to_string(),
+                Some(s) => format!("{} {}{}", t("Surface"), s + 1, if s == system.stop_index { format!(" ({})", t("stop")) } else { String::new() }),
             };
             if let Some(s) = surface
                 && let Some(g) = instaoptics_core::glass::find(&system.surfaces[s].material)
             {
                 info = format!("{info} · {} · nd {:.5} · vd {:.2}", g.name, g.nd, g.vd);
             }
-            ui.label(RichText::new(info).small().color(t.muted));
+            ui.label(RichText::new(info).small().color(tk.muted));
         });
     });
     ui.separator();
@@ -301,38 +302,38 @@ pub fn ui(wb: &mut Workbench, ui: &mut Ui) {
     egui::ScrollArea::both().auto_shrink([false, false]).show(ui, |ui| {
         ui.spacing_mut().item_spacing = Vec2::new(0.0, 0.0);
         let header = |ui: &mut Ui, text: &str, w: f32| {
-            ui.add_sized([w, row_h], egui::Label::new(RichText::new(text).small().color(t.muted)));
+            ui.add_sized([w, row_h], egui::Label::new(RichText::new(text).small().color(tk.muted)));
         };
         ui.horizontal(|ui| {
-            header(ui, "Surf", 44.0);
-            header(ui, "Type", 96.0);
+            header(ui, t("Surf"), 44.0);
+            header(ui, t("Type"), 96.0);
             let cb = surface.is_some_and(|s| system.surfaces[s].coordinate_break.is_some());
             for (c, label, w) in COLUMNS {
-                header(ui, if cb { cb_label(c).unwrap_or(label) } else { label }, w);
+                header(ui, if cb { cb_label(c).unwrap_or(t(label)) } else { t(label) }, w);
             }
         });
         for (r, row_cells) in cells.iter().enumerate() {
             let is_stop = r >= 1 && r - 1 == system.stop_index;
             let s = (r >= 1 && r <= n).then(|| &system.surfaces[r - 1]);
             let label = if r == 0 { "OBJ".to_string() } else if r == n + 1 { "IMA".into() } else if is_stop { "STO".into() } else { r.to_string() };
-            let kind = s.map_or("Standard", |s| if s.coordinate_break.is_some() { "Coord Break" } else if s.aspheric.iter().any(|a| *a != 0.0) { "Even Asphere" } else { "Standard" });
+            let kind = s.map_or(t("Standard"), |s| if s.coordinate_break.is_some() { t("Coord Break") } else if s.aspheric.iter().any(|a| *a != 0.0) { t("Even Asphere") } else { t("Standard") });
             ui.horizontal(|ui| {
-                let bg = if r == row { t.selection.gamma_multiply(0.5) } else if r % 2 == 1 { t.header.gamma_multiply(0.5) } else { Color32::TRANSPARENT };
+                let bg = if r == row { tk.selection.gamma_multiply(0.5) } else if r % 2 == 1 { tk.header.gamma_multiply(0.5) } else { Color32::TRANSPARENT };
                 let start = ui.cursor().min;
                 let width = 44.0 + 96.0 + COLUMNS.iter().map(|c| c.2).sum::<f32>();
                 ui.painter().rect_filled(egui::Rect::from_min_size(start, Vec2::new(width, row_h)), 0.0, bg);
-                let head = ui.add_sized([44.0, row_h], egui::Label::new(RichText::new(label).monospace().strong().color(if is_stop { t.accent } else { t.text })).sense(Sense::click()));
+                let head = ui.add_sized([44.0, row_h], egui::Label::new(RichText::new(label).monospace().strong().color(if is_stop { tk.accent } else { tk.text })).sense(Sense::click()));
                 if head.clicked() {
                     clicked = Some((r, col, false));
                 }
-                ui.add_sized([96.0, row_h], egui::Label::new(RichText::new(kind).small().color(t.muted)));
+                ui.add_sized([96.0, row_h], egui::Label::new(RichText::new(kind).small().color(tk.muted)));
                 for (c, (cv, (_, _, w))) in row_cells.iter().zip(COLUMNS.iter()).enumerate() {
                     let size = Vec2::new(*w, row_h);
                     if let Some((er, ec, text, invalid)) = &mut st.editing
                         && *er == r
                         && *ec == c
                     {
-                        let edit = egui::TextEdit::singleline(text).desired_width(*w - 4.0).font(egui::TextStyle::Monospace).text_color(if *invalid { t.error } else { t.text });
+                        let edit = egui::TextEdit::singleline(text).desired_width(*w - 4.0).font(egui::TextStyle::Monospace).text_color(if *invalid { tk.error } else { tk.text });
                         let resp = ui.add_sized(size, edit);
                         if !resp.has_focus() && !resp.lost_focus() {
                             resp.request_focus();
@@ -346,21 +347,21 @@ pub fn ui(wb: &mut Workbench, ui: &mut Ui) {
                     let (rect, resp) = ui.allocate_exact_size(size, Sense::click());
                     let active = r == row && c == col;
                     if active && st.focused {
-                        ui.painter().rect_stroke(rect.shrink(0.5), 0.0, egui::Stroke::new(1.0, t.accent), egui::StrokeKind::Inside);
+                        ui.painter().rect_stroke(rect.shrink(0.5), 0.0, egui::Stroke::new(1.0, tk.accent), egui::StrokeKind::Inside);
                     }
-                    let color = if cv.invalid { t.error } else if cv.muted { t.muted } else { t.text };
+                    let color = if cv.invalid { tk.error } else if cv.muted { tk.muted } else { tk.text };
                     let numeric = !matches!(COLUMNS[c].0, Col::Material | Col::Coating | Col::Solve);
                     let text_rect = rect.shrink2(Vec2::new(14.0, 0.0));
                     let align = if numeric { egui::Align2::RIGHT_CENTER } else { egui::Align2::LEFT_CENTER };
                     let anchor = if numeric { text_rect.right_center() } else { rect.left_center() + Vec2::new(4.0, 0.0) };
                     ui.painter().text(anchor, align, &cv.text, egui::FontId::monospace(12.0), color);
                     if let Some(note) = cv.note {
-                        ui.painter().text(rect.right_top() + Vec2::new(-2.0, 1.0), egui::Align2::RIGHT_TOP, note, egui::FontId::proportional(9.0), t.accent);
+                        ui.painter().text(rect.right_top() + Vec2::new(-2.0, 1.0), egui::Align2::RIGHT_TOP, note, egui::FontId::proportional(9.0), tk.accent);
                     }
                     if let Some(on) = cv.variable {
                         let vr = egui::Rect::from_min_size(rect.right_bottom() - Vec2::new(11.0, 11.0), Vec2::splat(10.0));
                         if on || resp.hovered() {
-                            ui.painter().text(vr.center(), egui::Align2::CENTER_CENTER, "V", egui::FontId::proportional(9.0), if on { t.variable } else { t.muted });
+                            ui.painter().text(vr.center(), egui::Align2::CENTER_CENTER, "V", egui::FontId::proportional(9.0), if on { tk.variable } else { tk.muted });
                         }
                         if resp.clicked() && resp.interact_pointer_pos().is_some_and(|p| vr.expand(2.0).contains(p)) {
                             toggle = Some((r, c));
@@ -373,7 +374,7 @@ pub fn ui(wb: &mut Workbench, ui: &mut Ui) {
                         clicked = Some((r, c, false));
                     }
                     if cv.invalid {
-                        resp.on_hover_text("Unknown material");
+                        resp.on_hover_text(t("Unknown material"));
                     }
                 }
             });

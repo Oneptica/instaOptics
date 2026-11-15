@@ -1,0 +1,232 @@
+# English	translation
+Rings	Ringe
+Max freq.	Max. Frequenz
+Field	Feld
+Scale	Skala
+Wavelength	Wellenlänge
+Frequency	Frequenz
+Range	Bereich
+Frequencies	Frequenzen
+Surface	Fläche
+Input	Eingang
+Transmission	Transmission
+Diattenuation	Diattenuation
+Retardance	Retardanz
+Map	Karte
+Save as PNG image	Als PNG-Bild speichern
+Export data as CSV	Daten als CSV exportieren
+File	Datei
+New System	Neues System
+Open…	Öffnen…
+Open Recent	Zuletzt geöffnet
+Samples	Beispiele
+Save	Speichern
+Save As…	Speichern unter…
+Import Zemax (.zmx)…	Zemax (.zmx) importieren…
+Export Zemax (.zmx)…	Zemax (.zmx) exportieren…
+Exit	Beenden
+Edit	Bearbeiten
+Undo	Rückgängig
+Redo	Wiederholen
+Setup	Einrichtung
+Analyze	Analyse
+Image Quality	Bildqualität
+Aberrations	Aberrationen
+Polarization	Polarisation
+Physical Optics	Physikalische Optik
+Optimize	Optimieren
+Remove All Variables	Alle Variablen entfernen
+Tolerance	Toleranz
+Libraries	Bibliotheken
+Add Glass Catalog…	Glaskatalog hinzufügen…
+View	Ansicht
+Language	Sprache
+System Language	Systemsprache
+Reset Window Layout	Fensteranordnung zurücksetzen
+Full Screen	Vollbild
+Help	Hilfe
+Check for Updates…	Nach Updates suchen…
+Source code	Quellcode
+Time for paraxial data, apertures and layout	Zeit für paraxiale Daten, Aperturen und Layout
+Don't Save	Nicht speichern
+Cancel	Abbrechen
+Aperture	Apertur
+Entrance pupil diameter	Eintrittspupillendurchmesser
+Image space F/#	Bildseitige F/#
+Paraxial working F/#	Paraxiale Arbeits-F/#
+Object space NA	Objektseitige NA
+Float by stop size	Durch Blendengröße
+Fields	Felder
+Angle (deg)	Winkel (°)
+Object height (mm)	Objekthöhe (mm)
+Paraxial image height (mm)	Paraxiale Bildhöhe (mm)
+Remove field	Feld entfernen
+Add field	Feld hinzufügen
+Wavelengths	Wellenlängen
+Wavelength (µm) · primary	Wellenlänge (µm) · Primär
+Primary wavelength	Primärwellenlänge
+Remove wavelength	Wellenlänge entfernen
+Add wavelength	Wellenlänge hinzufügen
+Use the F, d and C lines	F-, d- und C-Linie verwenden
+Object	Objekt
+Object at infinity	Objekt im Unendlichen
+Object distance	Objektabstand
+Ray Aiming	Strahlzielung
+Aim real rays at the stop	Reale Strahlen auf die Blende zielen
+Title	Titel
+General	Allgemein
+Real	Real
+Paraxial	Paraxial
+Decenter X	Dezentrierung X
+Decenter Y	Dezentrierung Y
+Tilt X	Kippung X
+Tilt Y	Kippung Y
+Tilt Z	Kippung Z
+Insert	Einfügen
+Insert a surface before (Insert)	Fläche davor einfügen (Einfg)
+Insert After	Danach einfügen
+Insert a surface after (Ctrl+Insert)	Fläche danach einfügen (Strg+Einfg)
+Delete	Löschen
+Delete the surface (Delete)	Fläche löschen (Entf)
+Make Stop	Als Blende
+Variable	Variable
+Toggle the selected cell as an optimization variable (Ctrl+T)	Ausgewählte Zelle als Optimierungsvariable umschalten (Strg+T)
+Coordinate Break	Koordinatenbruch
+Turn the surface into a coordinate break, or back	Fläche in einen Koordinatenbruch umwandeln oder zurück
+Image	Bild
+Surf	Fl.
+Type	Typ
+Coord Break	Koord.-Bruch
+Even Asphere	Gerade Asphäre
+Standard	Standard
+Unknown material	Unbekanntes Material
+Stop	Stopp
+Cycles	Zyklen
+Merit Function	Gütefunktion
+Criterion	Kriterium
+RMS spot radius (centroid)	RMS-Spotradius (Schwerpunkt)
+Pupil rings	Pupillenringe
+Targets and Constraints	Ziele und Randbedingungen
+Effective focal length	Effektive Brennweite
+Max total track	Max. Baulänge
+Min back focus	Min. Schnittweite
+Max chief ray angle	Max. Hauptstrahlwinkel
+Min glass centre	Min. Glasmittendicke
+Min glass edge	Min. Glasranddicke
+Min air gap	Min. Luftabstand
+Add	Hinzufügen
+Surf / Field	Fl. / Feld
+Rel	Rel.
+Target	Zielwert
+Weight	Gewicht
+Value	Wert
+All	Alle
+Radius	Radius
+Thickness	Dicke
+Conic	Konische Konstante
+Sensitivity	Sensitivität
+Monte Carlo	Monte Carlo
+Tolerances	Toleranzen
+Surface decenter	Flächendezentrierung
+Surface tilt	Flächenkippung
+Index nd	Brechzahl nd
+Abbe vd	Abbe-Zahl vd
+Analysis	Analyse
+Compensator	Kompensator
+Back focus	Schnittweite
+Monte Carlo trials	Monte-Carlo-Durchläufe
+Random seed	Zufallsstartwert
+Criterion: polychromatic RMS spot radius about each field's centroid. Monte Carlo draws each parameter from a normal distribution with 2σ = tolerance.	Kriterium: polychromatischer RMS-Spotradius um den Schwerpunkt jedes Feldes. Monte Carlo zieht jeden Parameter aus einer Normalverteilung mit 2σ = Toleranz.
+Parameter	Parameter
+±Tol	±Tol.
+Δ at + (µm)	Δ bei + (µm)
+Δ at − (µm)	Δ bei − (µm)
+Worst (µm)	Schlechtester (µm)
+Propagate the beam through the system	Strahl durch das System propagieren
+Side view x–z	Seitenansicht x–z
+Side view y–z	Seitenansicht y–z
+Beam radius	Strahlradius
+Cross section	Querschnitt
+Table	Tabelle
+Plane	Ebene
+Beam	Strahl
+Gaussian	Gauß
+On axis	Auf der Achse
+Waist radius (1/e²)	Taillenradius (1/e²)
+Waist position	Taillenposition
+Order	Ordnung
+Curvature radius	Krümmungsradius
+Grid samples	Gitterpunkte
+Fibre mode radius	Faser-Modenradius
+Include wavefront aberration	Wellenfrontaberration einbeziehen
+Clip at fixed surface apertures	An festen Flächenaperturen beschneiden
+The lens or the settings changed since this result.	Linse oder Einstellungen haben sich seit diesem Ergebnis geändert.
+Propagating…	Propagiere…
+Set up a source and press Run.	Quelle einrichten und Ausführen drücken.
+Test chart	Testbild
+Load Image…	Bild laden…
+Test Chart	Testbild
+Simulating…	Simuliere…
+Simulate	Simulieren
+Field samples	Feldstützstellen
+Diffraction	Beugung
+Pixel pitch (µm, blank: fit)	Pixelabstand (µm, leer: passend)
+Add Configurations	Konfigurationen hinzufügen
+Surface parameters take a different value in each configuration: zoom positions, scan angles, tolerance cases	Flächenparameter nehmen in jeder Konfiguration einen anderen Wert an: Zoomstellungen, Scanwinkel, Toleranzfälle
+Add Configuration	Konfiguration hinzufügen
+Remove Configuration	Konfiguration entfernen
+Remove the active configuration	Aktive Konfiguration entfernen
+Add Row	Zeile hinzufügen
+Make this the active configuration	Als aktive Konfiguration
+Remove row	Zeile entfernen
+Add Catalog…	Katalog hinzufügen…
+Add OpticStudio glass catalogs (.agf)	OpticStudio-Glaskataloge (.agf) hinzufügen
+Source	Quelle
+Select a surface	Fläche wählen
+Use the selected glass for the surface selected in the Lens Data editor	Ausgewähltes Glas für die im Linsendaten-Editor gewählte Fläche verwenden
+Catalogs	Kataloge
+Remove this catalog	Diesen Katalog entfernen
+Name	Name
+Catalog	Katalog
+Formula	Formel
+Range (µm)	Bereich (µm)
+System Explorer	System-Explorer
+Lens Data	Linsendaten
+System Data	Systemdaten
+Multi-Configuration	Mehrfachkonfiguration
+2D Layout	2D-Layout
+3D Layout	3D-Layout
+Spot Diagram	Spotdiagramm
+Ray Fan	Strahlfächer
+FFT MTF	FFT-MTF
+FFT PSF	FFT-PSF
+Wavefront Map	Wellenfrontkarte
+Through-Focus MTF	MTF über Fokus
+MTF vs Field	MTF über Feld
+Footprint Diagram	Footprint-Diagramm
+Field Curvature / Distortion	Bildfeldwölbung / Verzeichnung
+Seidel Diagram	Seidel-Diagramm
+Chromatic Focal Shift	Chromatische Fokusverschiebung
+Relative Illumination	Relative Beleuchtungsstärke
+Coating	Beschichtung
+Polarization Maps	Polarisationskarten
+Transmission vs Field	Transmission über Feld
+Beam Propagation	Strahlausbreitung
+Image Simulation	Bildsimulation
+Optimization	Optimierung
+Tolerancing	Tolerierung
+Glass Catalogs	Glaskataloge
+Material	Material
+Solve	Solve
+Clear Semi-Dia	Freier Halbdurchm.
+Total track	Baulänge
+Image height	Bildhöhe
+Chief ray angle	Hauptstrahlwinkel
+Distortion	Verzeichnung
+RMS spot radius	RMS-Spotradius
+Search glass name	Glasname suchen
+Computing…	Berechne…
+Cutoff	Grenzfrequenz
+showing the last valid result	letztes gültiges Ergebnis
+stop	Blende
+surfaces	Flächen

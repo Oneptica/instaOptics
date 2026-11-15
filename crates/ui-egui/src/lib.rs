@@ -6,6 +6,7 @@ mod analysis;
 mod app;
 mod control;
 mod explorer;
+pub mod i18n;
 mod lde;
 pub mod panels;
 mod plot;

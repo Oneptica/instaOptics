@@ -1,5 +1,6 @@
 //! The workbench: menu bar, docked windows, status bar, background work and the control channel.
 
+use crate::i18n::t;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -32,6 +33,7 @@ pub enum Action {
     Sample(&'static str),
     Window(Panel),
     Theme(ThemeChoice),
+    Language(&'static str),
     ResetLayout,
     FullScreen,
     CheckUpdates,
@@ -131,6 +133,8 @@ impl Workbench {
             workspace = Workspace::new(default_layout());
         }
         let theme = prefs.get().theme;
+        crate::i18n::set(&prefs.get().language);
+        crate::i18n::install_fonts(ctx);
         let control = control_port.and_then(|port| match control::start(port, ctx.clone()) {
             Ok(server) => Some(server),
             Err(e) => {
@@ -265,6 +269,10 @@ impl Workbench {
             }
             Action::Window(panel) => self.open_window(panel),
             Action::Theme(choice) => self.apply_theme(ctx, choice),
+            Action::Language(code) => {
+                crate::i18n::set(code);
+                self.prefs.update(|p| p.language = code.to_string());
+            }
             Action::ResetLayout => {
                 self.workspace = Workspace::new(default_layout());
                 self.save_workspace();
@@ -463,16 +471,16 @@ impl Workbench {
             };
             let mut chosen: Option<Action> = None;
             let mut pick = |a: Action| chosen = Some(a);
-            ui.menu_button("File", |ui| {
-                if item(ui, "New System", Some("Ctrl+N")) {
+            ui.menu_button(t("File"), |ui| {
+                if item(ui, t("New System"), Some("Ctrl+N")) {
                     pick(Action::Command("new", json!({})));
                 }
-                if item(ui, "Open…", Some("Ctrl+O")) {
+                if item(ui, t("Open…"), Some("Ctrl+O")) {
                     pick(Action::Open);
                 }
                 let recent = self.prefs.get().recent.clone();
                 ui.add_enabled_ui(!recent.is_empty(), |ui| {
-                    ui.menu_button("Open Recent", |ui| {
+                    ui.menu_button(t("Open Recent"), |ui| {
                         for path in recent {
                             if ui.button(&path).clicked() {
                                 pick(Action::OpenRecent(path));
@@ -480,7 +488,7 @@ impl Workbench {
                         }
                     });
                 });
-                ui.menu_button("Samples", |ui| {
+                ui.menu_button(t("Samples"), |ui| {
                     for (id, system) in instaoptics_core::system::samples() {
                         if ui.button(&system.name).clicked() {
                             pick(Action::Sample(id));
@@ -488,29 +496,29 @@ impl Workbench {
                     }
                 });
                 ui.separator();
-                if item(ui, "Save", Some("Ctrl+S")) {
+                if item(ui, t("Save"), Some("Ctrl+S")) {
                     pick(Action::Command("save", json!({})));
                 }
-                if item(ui, "Save As…", Some("Ctrl+Shift+S")) {
+                if item(ui, t("Save As…"), Some("Ctrl+Shift+S")) {
                     pick(Action::SaveAs);
                 }
                 ui.separator();
-                if item(ui, "Import Zemax (.zmx)…", None) {
+                if item(ui, t("Import Zemax (.zmx)…"), None) {
                     pick(Action::ImportZmx);
                 }
-                if item(ui, "Export Zemax (.zmx)…", None) {
+                if item(ui, t("Export Zemax (.zmx)…"), None) {
                     pick(Action::ExportZmx);
                 }
                 ui.separator();
-                if item(ui, "Exit", None) {
+                if item(ui, t("Exit"), None) {
                     pick(Action::Quit);
                 }
             });
-            ui.menu_button("Edit", |ui| {
-                if ui.add_enabled(self.session.can_undo(), egui::Button::new("Undo").shortcut_text("Ctrl+Z")).clicked() {
+            ui.menu_button(t("Edit"), |ui| {
+                if ui.add_enabled(self.session.can_undo(), egui::Button::new(t("Undo")).shortcut_text("Ctrl+Z")).clicked() {
                     pick(Action::Command("undo", json!({})));
                 }
-                if ui.add_enabled(self.session.can_redo(), egui::Button::new("Redo").shortcut_text("Ctrl+Y")).clicked() {
+                if ui.add_enabled(self.session.can_redo(), egui::Button::new(t("Redo")).shortcut_text("Ctrl+Y")).clicked() {
                     pick(Action::Command("redo", json!({})));
                 }
             });
@@ -521,48 +529,59 @@ impl Workbench {
                     }
                 }
             };
-            ui.menu_button("Setup", |ui| windows(ui, panels::SETUP, &mut pick));
-            ui.menu_button("Analyze", |ui| {
-                ui.menu_button("Image Quality", |ui| windows(ui, panels::IMAGE_QUALITY, &mut pick));
-                ui.menu_button("Aberrations", |ui| windows(ui, panels::ABERRATIONS, &mut pick));
-                ui.menu_button("Polarization", |ui| windows(ui, panels::POLARIZATION, &mut pick));
-                ui.menu_button("Physical Optics", |ui| windows(ui, panels::PHYSICAL, &mut pick));
+            ui.menu_button(t("Setup"), |ui| windows(ui, panels::SETUP, &mut pick));
+            ui.menu_button(t("Analyze"), |ui| {
+                ui.menu_button(t("Image Quality"), |ui| windows(ui, panels::IMAGE_QUALITY, &mut pick));
+                ui.menu_button(t("Aberrations"), |ui| windows(ui, panels::ABERRATIONS, &mut pick));
+                ui.menu_button(t("Polarization"), |ui| windows(ui, panels::POLARIZATION, &mut pick));
+                ui.menu_button(t("Physical Optics"), |ui| windows(ui, panels::PHYSICAL, &mut pick));
             });
-            ui.menu_button("Optimize", |ui| {
+            ui.menu_button(t("Optimize"), |ui| {
                 windows(ui, &[Panel::Optimize], &mut pick);
-                if item(ui, "Remove All Variables", None) {
+                if item(ui, t("Remove All Variables"), None) {
                     pick(Action::Command("variables.clear", json!({})));
                 }
             });
-            ui.menu_button("Tolerance", |ui| windows(ui, &[Panel::Tolerance], &mut pick));
-            ui.menu_button("Libraries", |ui| {
+            ui.menu_button(t("Tolerance"), |ui| windows(ui, &[Panel::Tolerance], &mut pick));
+            ui.menu_button(t("Libraries"), |ui| {
                 windows(ui, &[Panel::Glasses], &mut pick);
-                if item(ui, "Add Glass Catalog…", None) {
+                if item(ui, t("Add Glass Catalog…"), None) {
                     pick(Action::AddCatalog);
                 }
             });
-            ui.menu_button("View", |ui| {
+            ui.menu_button(t("View"), |ui| {
                 let current = self.prefs.get().theme;
                 for (label, choice) in [("System Theme", ThemeChoice::System), ("Dark Theme", ThemeChoice::Dark), ("Light Theme", ThemeChoice::Light)] {
                     if ui.radio(current == choice, label).clicked() {
                         pick(Action::Theme(choice));
                     }
                 }
+                ui.menu_button(t("Language"), |ui| {
+                    let current = self.prefs.get().language.clone();
+                    if ui.radio(current.is_empty() || current == "system", t("System Language")).clicked() {
+                        pick(Action::Language("system"));
+                    }
+                    for (code, name, _) in crate::i18n::LANGUAGES {
+                        if ui.radio(current == code, name).clicked() {
+                            pick(Action::Language(code));
+                        }
+                    }
+                });
                 ui.separator();
-                if item(ui, "Reset Window Layout", None) {
+                if item(ui, t("Reset Window Layout"), None) {
                     pick(Action::ResetLayout);
                 }
-                if item(ui, "Full Screen", Some("F11")) {
+                if item(ui, t("Full Screen"), Some("F11")) {
                     pick(Action::FullScreen);
                 }
             });
-            ui.menu_button("Help", |ui| {
-                if item(ui, "Check for Updates…", None) {
+            ui.menu_button(t("Help"), |ui| {
+                if item(ui, t("Check for Updates…"), None) {
                     pick(Action::CheckUpdates);
                 }
                 ui.separator();
                 ui.label(format!("instaOptics {}", env!("CARGO_PKG_VERSION")));
-                ui.hyperlink_to("Source code", "https://github.com/Oneptica/instaOptics");
+                ui.hyperlink_to(t("Source code"), "https://github.com/Oneptica/instaOptics");
             });
             if let Some(a) = chosen {
                 self.act(a);
@@ -571,16 +590,16 @@ impl Workbench {
     }
 
     fn status_bar(&mut self, ui: &mut Ui) {
-        let t = self.tokens;
+        let tk = self.tokens;
         ui.horizontal_centered(|ui| {
             if let Some(e) = &self.overview_error {
-                ui.label(RichText::new(e).color(t.error).small());
+                ui.label(RichText::new(e).color(tk.error).small());
             } else if let Some(ms) = self.overview_ms {
-                ui.label(RichText::new(format!("{ms:.1} ms")).color(t.muted).small()).on_hover_text("Time for paraxial data, apertures and layout");
+                ui.label(RichText::new(format!("{ms:.1} ms")).color(tk.muted).small()).on_hover_text(t("Time for paraxial data, apertures and layout"));
             }
             if let Some((text, error, link)) = self.updates.status() {
                 ui.separator();
-                let label = RichText::new(text).color(if error { t.error } else { t.muted }).small();
+                let label = RichText::new(text).color(if error { tk.error } else { tk.muted }).small();
                 match link {
                     Some(url) => {
                         ui.hyperlink_to(label, url);
@@ -592,11 +611,11 @@ impl Workbench {
             }
             if let Some((text, error)) = &self.status {
                 ui.separator();
-                ui.label(RichText::new(text).color(if *error { t.error } else { t.muted }).small());
+                ui.label(RichText::new(text).color(if *error { tk.error } else { tk.muted }).small());
             }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 let system = self.session.system();
-                ui.label(RichText::new(format!("{} surfaces", system.surfaces.len())).small());
+                ui.label(RichText::new(format!("{} {}", system.surfaces.len(), t("surfaces"))).small());
                 if let Some(w) = system.wavelengths.get(system.primary_wavelength) {
                     ui.label(RichText::new(format!("λ {w:.4} µm")).monospace().small());
                 }
@@ -607,7 +626,7 @@ impl Workbench {
                     ui.label(RichText::new(format!("EFL {:.4}", p.efl)).monospace().small());
                 }
                 if let Some(c) = &self.control {
-                    ui.label(RichText::new(format!("control :{}", c.port)).color(t.muted).small());
+                    ui.label(RichText::new(format!("control :{}", c.port)).color(tk.muted).small());
                 }
             });
         });
@@ -622,13 +641,13 @@ impl Workbench {
             ui.label(RichText::new(format!("Save changes to {}?", self.session.file_name())).strong());
             ui.add_space(12.0);
             ui.horizontal(|ui| {
-                if ui.button("Save").clicked() {
+                if ui.button(t("Save")).clicked() {
                     choice = Some(1);
                 }
-                if ui.button("Don't Save").clicked() {
+                if ui.button(t("Don't Save")).clicked() {
                     choice = Some(2);
                 }
-                if ui.button("Cancel").clicked() || ui.input(|i| i.key_pressed(Key::Escape)) {
+                if ui.button(t("Cancel")).clicked() || ui.input(|i| i.key_pressed(Key::Escape)) {
                     choice = Some(0);
                 }
             });
@@ -704,6 +723,14 @@ impl Workbench {
                         Ok(Value::Null)
                     }
                     _ => Err("width and height are required".into()),
+                },
+                "ui.language" => match params.get("language").and_then(Value::as_str) {
+                    Some(code) => {
+                        let code = crate::i18n::LANGUAGES.iter().map(|l| l.0).find(|c| *c == code).unwrap_or("system");
+                        self.act(Action::Language(code));
+                        Ok(Value::Null)
+                    }
+                    None => Err("language is required".into()),
                 },
                 "ping" => Ok(json!("pong")),
                 "control.methods" => Ok(Value::Array(control::METHODS.iter().map(|(m, d)| json!({ "method": m, "description": d })).collect())),

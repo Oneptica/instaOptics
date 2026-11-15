@@ -17,6 +17,7 @@ Every request carries the session token. Loopback TCP cannot tell local users ap
 | `ui.open` | `{window}` | Open or focus a window |
 | `ui.screenshot` | `{path?}` | PNG of the window; `pngBase64` without a path |
 | `ui.resize` | `{width, height}` | Resize the window |
+| `ui.language` | `{language}` | `system`, `en`, `zh-CN`, `zh-TW`, `ja`, `ko`, `de`, `fr`, `es` or `ru` |
 | `ui.state` | | Theme, open windows, selected surface, file and dirty state |
 | `ping` | | `"pong"` |
 | `control.methods` | | This list |
