@@ -27,9 +27,9 @@
 
 <p align="center"><a href="README.zh-CN.md">中文</a></p>
 
-![instaOptics: bending the first lens of a Cooke triplet, optimizing it back with R2, R4 and the back focus variable, then its MTF and 3D layout](docs/screenshots/demo.gif)
+![instaOptics: importing the US 8,879,901 objective from a Zemax file, moving the image plane, optimizing the back focus, then the MTF and the 3D layout](docs/screenshots/demo.gif)
 
-*A Cooke triplet: the first lens is bent and the spot diagram grows, then R2, R4 and the back focus are optimized with the EFL held at 50 mm, followed by the MTF and the 3D layout. Recorded with the [demo script](examples/demo/record.py), which drives the app through the same commands the menus run.*
+*The US 8,879,901 objective (11 elements, f/2) imported from a Zemax file: the image plane moves and the spot diagrams follow, the back focus is optimized, then the MTF and the 3D layout. Recorded with the [demo script](examples/demo/record.py), which drives the app through the same commands the menus run.*
 
 ## Download
 
@@ -54,6 +54,10 @@ All on the [releases page][releases]. Installed copies check for a new version a
 - Solves (marginal ray height, pickups) and multi-configuration data
 - 2D and 3D layout
 - Zemax `.zmx` import and export
+
+## Accuracy
+
+The same objective is checked against [optiland](https://github.com/HarrisonKramer/optiland), an independent open-source ray tracer, in `cargo test`: EFL, BFL, pupil diameter and positions agree within 1.2e-5 relative, and 54 real rays (3 fields, 3 wavelengths, 6 pupil points) land within 0.02 µm of optiland's at the image. Reference data: [examples/validation/us8879901.py](examples/validation/us8879901.py).
 
 ## Build from source
 

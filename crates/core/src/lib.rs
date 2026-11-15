@@ -88,6 +88,21 @@ pub enum AnalysisRequest {
     Polarization { field: usize, wavelength: usize, grid: usize, input: polarization::PolInput },
     /// Mean and minimum transmission for every field.
     TransmissionByField { wavelength: usize, grid: usize, input: polarization::PolInput },
+    /// One real ray from a field through normalized pupil coordinates (px, py), as OpticStudio's Single Ray Trace.
+    RayTrace { field: usize, px: f64, py: f64, wavelength: usize },
+}
+
+/// A single real ray: where it meets each surface and the image, in image coordinates (global without fold mirrors).
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SingleRay {
+    pub field: f64,
+    pub wavelength: f64,
+    /// Start point, each surface reached, then the image point when the ray survives.
+    pub points: Vec<vec3::Vec3>,
+    /// Direction cosines after the last surface reached.
+    pub direction: vec3::Vec3,
+    pub failure: Option<trace::Failure>,
 }
 
 /// The typed result of one analysis. Serializes as the bare result, so the JSON form is the same for every caller.
@@ -113,6 +128,7 @@ pub enum AnalysisResult {
     Coating(polarization::CoatingCurves),
     Polarization(polarization::PolarizationMap),
     TransmissionByField(Vec<polarization::FieldTransmission>),
+    RayTrace(SingleRay),
 }
 
 /// Runs one analysis.
@@ -164,6 +180,12 @@ pub fn analyze(system: &LensSystem, request: &AnalysisRequest) -> Result<Analysi
         AnalysisRequest::TransmissionByField { wavelength, grid, input } => {
             let lambda = pick(&system.wavelengths, wavelength, "wavelength")?;
             R::TransmissionByField(polarization::transmission_by_field(&context, lambda, grid.clamp(5, 65), input)?)
+        }
+        AnalysisRequest::RayTrace { field, px, py, wavelength } => {
+            let (field, wavelength) = (pick(&system.fields, field, "field")?, pick(&system.wavelengths, wavelength, "wavelength")?);
+            let n = system.medium_indices(wavelength)?;
+            let ray = context.trace_ray(field, px, py, wavelength, &n);
+            R::RayTrace(SingleRay { field, wavelength, points: ray.points.clone(), direction: ray.direction, failure: ray.failure })
         }
         AnalysisRequest::Pop { settings } => R::Pop(pop::simulate(system, &settings)?),
         AnalysisRequest::Layout3d { ring } => {

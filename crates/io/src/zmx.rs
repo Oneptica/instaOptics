@@ -7,22 +7,20 @@ use instaoptics_core::{LensSystem, Surface, glass};
 use crate::{IoError, number};
 
 const FIELD_CODES: [FieldType; 3] = [FieldType::Angle, FieldType::ObjectHeight, FieldType::ImageHeight];
-const APERTURE_CODES: [ApertureType; 5] =
-    [ApertureType::EntrancePupilDiameter, ApertureType::ImageFNumber, ApertureType::ObjectNa, ApertureType::FloatByStop, ApertureType::WorkingFNumber];
 
 pub fn export_zmx(system: &LensSystem) -> String {
     let field_code = FIELD_CODES.iter().position(|f| *f == system.field_type).unwrap_or(0);
-    let aperture_code = APERTURE_CODES.iter().position(|a| *a == system.aperture_type).unwrap_or(0);
     let value = number(system.aperture_value.unwrap_or(0.0));
     let mut lines = vec!["VERS 190513 80 123457 L123457".to_string(), "MODE SEQ".into(), format!("NAME {}", system.name), "UNIT MM X W X CM MR CPMM".into()];
     lines.push(match system.aperture_type {
         ApertureType::EntrancePupilDiameter => format!("ENPD {}", number(system.entrance_pupil_diameter)),
-        ApertureType::ImageFNumber | ApertureType::WorkingFNumber => format!("FNUM {value} 0"),
+        ApertureType::ImageFNumber => format!("FNUM {value} 0"),
+        ApertureType::WorkingFNumber => format!("FNUM {value} 1"),
         ApertureType::ObjectNa => format!("OBNA {value} 0"),
         ApertureType::FloatByStop => "FLOA".into(),
     });
     lines.push("GCAT SCHOTT".into());
-    lines.push(format!("FTYP {field_code} {aperture_code} {} {} 0 0 0", system.fields.len(), system.wavelengths.len()));
+    lines.push(format!("FTYP {field_code} 0 {} {} 0 0 0", system.fields.len(), system.wavelengths.len()));
     let join = |values: Vec<String>| values.join(" ");
     lines.push(format!("XFLN {}", join(system.fields.iter().map(|_| "0".to_string()).collect())));
     lines.push(format!("YFLN {}", join(system.fields.iter().map(|f| number(*f)).collect())));
@@ -98,7 +96,10 @@ pub fn import_zmx(text: &str, known: &dyn Fn(&str) -> Option<String>) -> Result<
     let mut warnings = Vec::new();
     let mut raw: Vec<Raw> = Vec::new();
     let (mut name, mut epd, mut fnum, mut obna) = ("Imported lens".to_string(), None, None, None);
-    let (mut field_code, mut aperture_code) = (0usize, 0usize);
+    let mut field_code = 0usize;
+    // The aperture type is the keyword that gives it (ENPD, FNUM, OBNA, FLOA), not a field of FTYP; FNUM's second
+    // number tells image space F/# (0) from paraxial working F/# (1).
+    let mut aperture_type = ApertureType::EntrancePupilDiameter;
     let (mut fields, mut wavelengths, mut primary) = (Vec::<f64>::new(), Vec::<f64>::new(), 1usize);
     for line in text.lines() {
         let parts: Vec<&str> = line.split_whitespace().collect();
@@ -146,13 +147,20 @@ pub fn import_zmx(text: &str, known: &dyn Fn(&str) -> Option<String>) -> Result<
         }
         match key {
             "NAME" if parts.len() > 1 => name = line.trim().get(5..).unwrap_or("").to_string(),
-            "ENPD" => epd = val(1),
-            "FNUM" => fnum = val(1),
-            "OBNA" => obna = val(1),
-            "FTYP" => {
-                field_code = val(1).unwrap_or(0.0) as usize;
-                aperture_code = val(2).unwrap_or(0.0) as usize;
+            "ENPD" => {
+                epd = val(1);
+                aperture_type = ApertureType::EntrancePupilDiameter;
             }
+            "FNUM" => {
+                fnum = val(1);
+                aperture_type = if val(2) == Some(1.0) { ApertureType::WorkingFNumber } else { ApertureType::ImageFNumber };
+            }
+            "OBNA" => {
+                obna = val(1);
+                aperture_type = ApertureType::ObjectNa;
+            }
+            "FLOA" => aperture_type = ApertureType::FloatByStop,
+            "FTYP" => field_code = val(1).unwrap_or(0.0) as usize,
             "YFLN" => fields = parts[1..].iter().filter_map(|p| p.parse().ok()).collect(),
             "WAVM" => {
                 if let (Some(i), Some(w)) = (val(1), val(2))
@@ -182,15 +190,11 @@ pub fn import_zmx(text: &str, known: &dyn Fn(&str) -> Option<String>) -> Result<
     } else if field_code > 3 {
         warnings.push("This field type is not supported; field values were read as angles".into());
     }
-    if aperture_code > 4 {
-        warnings.push("This aperture type is not supported; using an entrance pupil diameter".into());
-    }
     let field_type = match field_code {
         1 => FieldType::ObjectHeight,
         2 | 3 => FieldType::ImageHeight,
         _ => FieldType::Angle,
     };
-    let aperture_type = APERTURE_CODES.get(aperture_code).copied().unwrap_or_default();
     let (object, image) = (&raw[0], &raw[raw.len() - 1]);
     if image.curv != 0.0 {
         warnings.push("A curved image surface was flattened".into());

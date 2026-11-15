@@ -27,9 +27,9 @@
 
 <p align="center"><a href="README.md">English</a></p>
 
-![instaOptics：把 Cooke 三片式的第一片透镜弯坏，再以 R2、R4 和后截距为变量优化回来，然后看 MTF 和三维布局](docs/screenshots/demo.gif)
+![instaOptics：从 Zemax 文件导入 US 8,879,901 物镜，移动像面，优化后截距，再看 MTF 和三维布局](docs/screenshots/demo.gif)
 
-*Cooke 三片式：先把第一片透镜弯坏，点列图明显变大；再以 R2、R4 和后截距为变量、保持焦距 50 mm 做优化；最后看 MTF 和三维布局。由[演示脚本](examples/demo/record.py)录制，脚本调用的就是菜单使用的那套命令。*
+*从 Zemax 文件导入 US 8,879,901 物镜（11 片，F/2）：移动像面，点列图随之变化；优化后截距；再看 MTF 和三维布局。由[演示脚本](examples/demo/record.py)录制，脚本调用的就是菜单使用的那套命令。*
 
 ## 下载
 
@@ -54,6 +54,10 @@
 - 求解（边缘光线高度、关联）和多重结构
 - 二维和三维布局图
 - Zemax `.zmx` 导入导出
+
+## 计算精度
+
+同一个物镜在 `cargo test` 中和独立的开源光线追迹程序 [optiland](https://github.com/HarrisonKramer/optiland) 对比：EFL、BFL、入瞳直径和光瞳位置的相对差不超过 1.2e-5；54 根实际光线（3 个视场 × 3 个波长 × 6 个光瞳点）在像面上的交点与 optiland 相差不超过 0.02 µm。参考数据由 [examples/validation/us8879901.py](examples/validation/us8879901.py) 生成。
 
 ## 从源码构建
 

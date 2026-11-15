@@ -118,7 +118,7 @@ pub fn figure(result: &AnalysisResult, system: &LensSystem, working_f_number: Op
         AnalysisResult::MeritFunction(report) => {
             Figure { footer: format!("Merit {}", if report.merit.is_finite() { format!("{:.6e}", report.merit) } else { "—".into() }), ..Figure::default() }
         }
-        AnalysisResult::GaussianBeam(_) | AnalysisResult::Layout3d(_) => Figure::default(),
+        AnalysisResult::GaussianBeam(_) | AnalysisResult::Layout3d(_) | AnalysisResult::RayTrace(_) => Figure::default(),
     }
 }
 

@@ -303,6 +303,7 @@ pub fn default_request(kind: &str) -> Option<Value> {
         "polarization" => json!({ "kind": "polarization", "field": 0, "wavelength": 0, "grid": 129, "input": { "kind": "unpolarized" } }),
         "transmissionByField" => json!({ "kind": "transmissionByField", "wavelength": 0, "grid": 33, "input": { "kind": "unpolarized" } }),
         "meritFunction" => json!({ "kind": "meritFunction" }),
+        "rayTrace" => json!({ "kind": "rayTrace", "field": 0, "px": 0.0, "py": 1.0, "wavelength": 0 }),
         "pop" => json!({ "kind": "pop", "settings": { "source": { "kind": "gaussian", "radius": 1.0, "waist": 0.0 }, "samples": 256 } }),
         _ => return None,
     })
@@ -316,7 +317,7 @@ fn fill_request(value: Value) -> Value {
 }
 
 fn analyses() -> Value {
-    let kinds = ["spot", "rayFan", "mtf", "psf", "wavefront", "throughFocus", "mtfVsField", "footprint", "fieldCurves", "seidel", "chromaticFocalShift", "illumination", "coating", "polarization", "transmissionByField", "pop", "meritFunction"];
+    let kinds = ["spot", "rayFan", "mtf", "psf", "wavefront", "throughFocus", "mtfVsField", "footprint", "fieldCurves", "seidel", "chromaticFocalShift", "illumination", "coating", "polarization", "transmissionByField", "pop", "meritFunction", "rayTrace"];
     Value::Array(kinds.iter().filter_map(|k| default_request(k)).collect())
 }
 

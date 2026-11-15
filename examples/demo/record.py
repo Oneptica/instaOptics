@@ -77,36 +77,39 @@ def font(size):
     return ImageFont.load_default()
 
 
+FIXTURE = os.path.join(os.path.dirname(__file__), "..", "..", "crates", "engine", "tests", "fixtures", "us8879901")
+
+
 def story(app, rec):
     app.call("ui.resize", {"width": 1280, "height": 760})
-    app.run("sample", id="cooke")
+    # The lens's glasses come with it as an .agf catalog; it is removed again at the end.
+    app.run("catalog.add", path=os.path.abspath(os.path.join(FIXTURE, "US8879901.agf")))
+    app.run("import.zmx", path=os.path.abspath(os.path.join(FIXTURE, "us8879901.zmx")))
+    app.run("system.set", name="US 8,879,901 objective")
     for w in ["layout", "spot", "lensData"]:
         app.call("ui.open", {"window": w})
-    rec.shot("A Cooke triplet: Lens Data, 2D layout and spot diagram", hold=18, settle=1.5)
+    rec.shot("Import a Zemax file: the US 8,879,901 objective, 11 elements, f/2", hold=20, settle=2.0)
 
-    caption = "Bend the first lens: radius of surface 2 from −436 to −120 mm, every analysis follows"
-    for r in [-435.76, -330, -250, -190, -150, -120]:
-        app.run("surface.set", surface=2, radius=r)
-        rec.shot(caption, hold=3)
-    rec.shot(caption, hold=8)
+    caption = "Move the image plane: back focus from 3.15 to 3.55 mm, every analysis follows"
+    for t in [3.153, 3.25, 3.35, 3.45, 3.55]:
+        app.run("surface.set", surface=24, thickness=t)
+        rec.shot(caption, hold=4, settle=0.6)
+    rec.shot(caption, hold=6)
 
-    caption = "Optimize: R2, R4 and back focus variable, EFL held at 50 mm, damped least squares on the RMS spot"
-    app.run("system.set", targetEfl=50)
-    for s, p in [(2, "radius"), (4, "radius"), (6, "thickness")]:
-        app.run("variable", surface=s, parameter=p)
+    caption = "Optimize the back focus on the RMS spot radius (damped least squares)"
+    app.run("variable", surface=24, parameter="thickness")
     app.call("ui.open", {"window": "optimize"})
-    rec.shot(caption, hold=10, settle=0.8)
-    for _ in range(5):
+    rec.shot(caption, hold=10, settle=1.0)
+    for _ in range(4):
         app.run("optimize", cycles=1)
-        rec.shot(caption, hold=4)
-    rec.shot(caption, hold=8)
-
+        rec.shot(caption, hold=4, settle=0.6)
     app.call("ui.open", {"window": "spot"})
-    rec.shot("Spot diagram after optimization", hold=16, settle=0.8)
+    rec.shot("Spot diagram at the optimized focus", hold=14, settle=1.0)
     app.call("ui.open", {"window": "mtf"})
-    rec.shot("FFT MTF of the optimized lens", hold=14, settle=1.0)
+    rec.shot("FFT MTF", hold=14, settle=1.5)
     app.call("ui.open", {"window": "layout3d"})
-    rec.shot("3D layout", hold=14, settle=1.0)
+    rec.shot("3D layout", hold=16, settle=1.5)
+    app.run("catalog.remove", name="US8879901")
 
 
 def main():
