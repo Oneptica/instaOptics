@@ -97,8 +97,20 @@ mod tests {
     fn catalogs_cover_every_interface_string() {
         let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/src");
         let mut keys: Vec<String> = crate::panels::Panel::ALL.iter().map(|p| p.title_en().to_string()).collect();
-        for entry in std::fs::read_dir(dir).unwrap() {
-            let path = entry.unwrap().path();
+        // The sources of src and its subfolders, such as app/.
+        let mut files = Vec::new();
+        let mut folders = vec![std::path::PathBuf::from(dir)];
+        while let Some(folder) = folders.pop() {
+            for entry in std::fs::read_dir(folder).unwrap() {
+                let path = entry.unwrap().path();
+                if path.is_dir() {
+                    folders.push(path);
+                } else {
+                    files.push(path);
+                }
+            }
+        }
+        for path in files {
             if path.ends_with("i18n.rs") {
                 continue;
             }
