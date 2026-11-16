@@ -34,7 +34,7 @@ fn icon() -> Option<egui::IconData> {
 
 fn main() -> eframe::Result {
     let args = Args::parse();
-    let mut viewport = egui::ViewportBuilder::default().with_title("instaOptics").with_inner_size([1440.0, 900.0]).with_min_inner_size([800.0, 500.0]).with_app_id("instaoptics");
+    let mut viewport = egui::ViewportBuilder::default().with_title("instaOptics").with_decorations(false).with_inner_size([1440.0, 900.0]).with_min_inner_size([800.0, 500.0]).with_app_id("instaoptics");
     if let Some(icon) = icon() {
         viewport = viewport.with_icon(icon);
     }

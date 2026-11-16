@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/*", "apps/*"]
 
 [workspace.package]
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 license = "MIT"
 rust-version = "1.95"
@@ -35,7 +35,6 @@ epaint_default_fonts = "0.37"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "bmp", "tiff"] }
 
 # shared Craft libraries, one reviewed revision for all of them
-craft-ui = { git = "https://github.com/storytold/craft-libs", rev = "30596f73c5ef851ba3dad9cf145669f391e2eb0d", features = ["serde"] }
 craft-settings = { git = "https://github.com/storytold/craft-libs", rev = "30596f73c5ef851ba3dad9cf145669f391e2eb0d" }
 craft-jsonrpc = { git = "https://github.com/storytold/craft-libs", rev = "30596f73c5ef851ba3dad9cf145669f391e2eb0d" }
 craft-mcp = { git = "https://github.com/storytold/craft-libs", rev = "30596f73c5ef851ba3dad9cf145669f391e2eb0d" }
@@ -45,6 +44,8 @@ ureq = { version = "3", default-features = false, features = ["rustls", "json"] 
 # ui
 egui = { version = "0.37", default-features = false, features = ["default_fonts"] }
 eframe = { version = "0.37", default-features = false }
+egui_tiles = "0.18"
+egui_material_icons = "0.9"
 # Native file dialogs through the XDG desktop portal on Linux (no wayland development files needed to build).
 rfd = { version = "0.17", default-features = false, features = ["xdg-portal"] }
 

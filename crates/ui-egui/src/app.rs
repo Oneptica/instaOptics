@@ -4,9 +4,8 @@ use crate::i18n::t;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use craft_ui::docking::{Action as DockAction, DockArea, DockStyle, Layout, Node, Permissions, Workspace};
-use craft_ui::layout::{SplitAxis, SplitSize};
 use egui::{Context, Key, KeyboardShortcut, Modifiers, RichText, Ui};
+use egui_tiles::{Behavior, Linear, LinearDir, SimplificationOptions, Tile, TileId, Tiles, Tree, UiResponse};
 use instaoptics_core::Overview;
 use instaoptics_engine::{Session, commands};
 use serde_json::{Value, json};
@@ -18,6 +17,8 @@ use crate::prefs::Prefs;
 use crate::theme::{ThemeChoice, Tokens};
 use crate::worker::{JobKey, Output, Worker, tag};
 use crate::{control, explorer, lde, tools, view3d};
+
+mod ribbon;
 
 /// Actions the menus, shortcuts and toolbars ask for. Engine commands run through the command registry.
 #[derive(Clone, Debug, PartialEq)]
@@ -51,7 +52,7 @@ pub struct Workbench {
     pub worker: Worker,
     pub tokens: Tokens,
     prefs: craft_settings::SettingsStore<Prefs>,
-    workspace: Workspace<Panel>,
+    tree: Tree<Panel>,
     pub overview: Option<Overview>,
     pub overview_error: Option<String>,
     overview_ms: Option<f64>,
@@ -72,18 +73,68 @@ pub struct Workbench {
     quitting: bool,
     updates: crate::updates::Updates,
     actions: Vec<Action>,
+    ribbon_tab: usize,
+    search: String,
+    search_open: bool,
 }
 
-fn default_layout() -> Layout<Panel> {
-    let tabs = |panels: Vec<Panel>| Node::Tabs { panels, active: 0 };
-    let split = |axis, size, first, second| Node::Split { axis, size, first: Box::new(first), second: Box::new(second) };
-    let views = split(SplitAxis::Horizontal, SplitSize::Ratio(0.5), tabs(vec![Panel::Layout, Panel::Layout3d]), tabs(vec![Panel::Spot, Panel::Mtf, Panel::RayFan]));
-    let right = split(SplitAxis::Vertical, SplitSize::Ratio(0.66), views, tabs(vec![Panel::LensData, Panel::SystemData, Panel::Configs]));
-    Layout { root: Some(split(SplitAxis::Horizontal, SplitSize::FixedFirst(270.0), tabs(vec![Panel::SystemExplorer]), right)), floating: Vec::new() }
+fn tabs(tiles: &mut Tiles<Panel>, panels: &[Panel]) -> TileId {
+    let children = panels.iter().map(|p| tiles.insert_pane(*p)).collect();
+    tiles.insert_tab_tile(children)
 }
 
-fn permissions(_: &Panel) -> Permissions {
-    Permissions::default()
+fn default_tree() -> Tree<Panel> {
+    let mut tiles = Tiles::default();
+    let views = [tabs(&mut tiles, &[Panel::Layout, Panel::Layout3d]), tabs(&mut tiles, &[Panel::Spot, Panel::Mtf, Panel::RayFan])];
+    let views = tiles.insert_container(Linear::new_binary(LinearDir::Horizontal, views, 0.5));
+    let data = tabs(&mut tiles, &[Panel::LensData, Panel::SystemData, Panel::Configs]);
+    let right = tiles.insert_container(Linear::new_binary(LinearDir::Vertical, [views, data], 0.66));
+    let explorer = tabs(&mut tiles, &[Panel::SystemExplorer]);
+    let root = tiles.insert_container(Linear::new_binary(LinearDir::Horizontal, [explorer, right], 0.18));
+    Tree::new(egui::Id::unique("instaoptics-dock"), root, tiles)
+}
+
+/// The window layout as egui_tiles draws it: every pane in a tab group, closable, edits reported.
+struct Dock<'a> {
+    wb: &'a mut Workbench,
+    changed: bool,
+}
+
+impl Behavior<Panel> for Dock<'_> {
+    fn pane_ui(&mut self, ui: &mut Ui, _: TileId, pane: &mut Panel) -> UiResponse {
+        let tk = self.wb.tokens;
+        let rect = ui.max_rect();
+        ui.painter().rect(rect, 6, tk.panel, egui::Stroke::new(1.0, tk.border), egui::StrokeKind::Inside);
+        ui.scope_builder(egui::UiBuilder::new().max_rect(rect.shrink2(egui::vec2(6.0, 4.0))), |ui| self.wb.panel_ui(ui, *pane));
+        UiResponse::None
+    }
+    fn gap_width(&self, _: &egui::Style) -> f32 {
+        6.0
+    }
+    fn tab_bar_color(&self, _: &egui::Visuals) -> egui::Color32 {
+        self.wb.tokens.backdrop
+    }
+    fn tab_bg_color(&self, _: &egui::Visuals, _: &Tiles<Panel>, _: TileId, state: &egui_tiles::TabState) -> egui::Color32 {
+        if state.active { self.wb.tokens.panel } else { egui::Color32::TRANSPARENT }
+    }
+    fn tab_outline_stroke(&self, _: &egui::Visuals, _: &Tiles<Panel>, _: TileId, state: &egui_tiles::TabState) -> egui::Stroke {
+        if state.active { egui::Stroke::new(1.0, self.wb.tokens.border) } else { egui::Stroke::NONE }
+    }
+    fn tab_bar_hline_stroke(&self, _: &egui::Visuals) -> egui::Stroke {
+        egui::Stroke::NONE
+    }
+    fn tab_title_for_pane(&mut self, pane: &Panel) -> egui::WidgetText {
+        pane.title().to_string().into()
+    }
+    fn is_tab_closable(&self, _: &Tiles<Panel>, _: TileId) -> bool {
+        true
+    }
+    fn simplification_options(&self) -> SimplificationOptions {
+        SimplificationOptions { all_panes_must_have_tabs: true, ..Default::default() }
+    }
+    fn on_edit(&mut self, _: egui_tiles::EditAction) {
+        self.changed = true;
+    }
 }
 
 /// Where a window opens when it is not in the layout: next to the windows of its kind.
@@ -128,10 +179,7 @@ impl Workbench {
                 let _ = commands::execute(&mut session, "sample", &json!({ "id": "cooke" }));
             }
         }
-        let mut workspace = serde_json::from_str::<Workspace<Panel>>(&prefs.get().workspace).ok().filter(|w| w.validate().is_ok() && w.layout.root.is_some()).unwrap_or_default();
-        if workspace.layout.root.is_none() {
-            workspace = Workspace::new(default_layout());
-        }
+        let tree = serde_json::from_str::<Tree<Panel>>(&prefs.get().workspace).ok().filter(|t| !t.is_empty()).unwrap_or_else(default_tree);
         let theme = prefs.get().theme;
         crate::i18n::set(&prefs.get().language);
         crate::i18n::install_fonts(ctx);
@@ -147,7 +195,7 @@ impl Workbench {
             worker: Worker::new(ctx.clone()),
             tokens: Tokens::new(true),
             prefs,
-            workspace,
+            tree,
             overview: None,
             overview_error: None,
             overview_ms: None,
@@ -168,6 +216,9 @@ impl Workbench {
             quitting: false,
             updates: crate::updates::Updates::default(),
             actions: Vec::new(),
+            ribbon_tab: 0,
+            search: String::new(),
+            search_open: false,
         };
         wb.system_json = serde_json::to_string(wb.session.system()).unwrap_or_default();
         wb.apply_theme(ctx, theme);
@@ -181,7 +232,8 @@ impl Workbench {
             ThemeChoice::System => ctx.system_theme().is_none_or(|t| t == egui::Theme::Dark),
         };
         self.tokens = Tokens::new(dark);
-        ctx.set_visuals(self.tokens.visuals());
+        let tokens = self.tokens;
+        ctx.all_styles_mut(|style| tokens.apply(style));
         self.prefs.update(|p| p.theme = choice);
     }
 
@@ -274,7 +326,7 @@ impl Workbench {
                 self.prefs.update(|p| p.language = code.to_string());
             }
             Action::ResetLayout => {
-                self.workspace = Workspace::new(default_layout());
+                self.tree = default_tree();
                 self.save_workspace();
             }
             Action::FullScreen => {
@@ -303,27 +355,57 @@ impl Workbench {
     }
 
     pub fn open_window(&mut self, panel: Panel) {
-        let present = self.workspace.layout.root.as_ref().is_some_and(|r| contains(r, panel)) || self.workspace.layout.floating.iter().any(|f| f.panels().any(|p| *p == panel));
-        let action = if present {
-            DockAction::Activate { panel }
-        } else {
-            let anchor = Panel::ALL.iter().copied().find(|p| *p != panel && area(*p) == area(panel) && self.workspace.layout.root.as_ref().is_some_and(|r| contains(r, *p)));
-            DockAction::Open { panel, anchor }
-        };
-        if let Err(e) = self.workspace.apply(action, permissions) {
-            self.set_status(format!("{e:?}"), true);
+        if self.tree.make_active(|_, tile| matches!(tile, Tile::Pane(p) if *p == panel)) {
+            return;
         }
+        let new = self.tree.tiles.insert_pane(panel);
+        let anchor = Panel::ALL.iter().copied().filter(|p| *p != panel && area(*p) == area(panel)).find_map(|p| self.tree.tiles.find_pane(&p));
+        let group = anchor.and_then(|a| self.tree.tiles.parent_of(a));
+        match (group, self.tree.root()) {
+            (Some(group), _) => self.tree.move_tile_to_container(new, group, usize::MAX, false),
+            (None, Some(root)) => self.tree.move_tile_to_container(new, root, usize::MAX, false),
+            (None, None) => self.tree = Tree::new_tabs(egui::Id::unique("instaoptics-dock"), vec![panel]),
+        }
+        self.tree.make_active(|id, _| id == new);
         self.save_workspace();
     }
 
     fn save_workspace(&mut self) {
-        if let Ok(json) = serde_json::to_string(&self.workspace) {
+        if let Ok(json) = serde_json::to_string(&self.tree) {
             self.prefs.update(|p| p.workspace = json);
         }
     }
 
     pub fn open_windows(&self) -> Vec<Panel> {
-        Panel::ALL.iter().copied().filter(|p| self.workspace.layout.root.as_ref().is_some_and(|r| contains(r, *p))).collect()
+        Panel::ALL.iter().copied().filter(|p| self.tree.tiles.find_pane(p).is_some()).collect()
+    }
+
+    /// The window has no system frame, so its edges are resized here and a one pixel line marks its border.
+    fn window_edges(&self, ctx: &Context) {
+        use egui::{CursorIcon, ResizeDirection as D, ViewportCommand};
+        let (full, pos, screen) = ctx.input(|i| (i.viewport().fullscreen.unwrap_or(false) || i.viewport().maximized.unwrap_or(false), i.pointer.latest_pos(), i.content_rect()));
+        if full {
+            return;
+        }
+        ctx.layer_painter(egui::LayerId::new(egui::Order::Foreground, egui::Id::unique("window_border"))).rect_stroke(screen, 0, egui::Stroke::new(1.0, self.tokens.border), egui::StrokeKind::Inside);
+        let Some(p) = pos else { return };
+        let m = 5.0;
+        let (l, r, t, b) = (p.x < screen.left() + m, p.x > screen.right() - m, p.y < screen.top() + m, p.y > screen.bottom() - m);
+        let (dir, cursor) = match (l, r, t, b) {
+            (true, _, true, _) => (D::NorthWest, CursorIcon::ResizeNwSe),
+            (_, true, true, _) => (D::NorthEast, CursorIcon::ResizeNeSw),
+            (true, _, _, true) => (D::SouthWest, CursorIcon::ResizeNeSw),
+            (_, true, _, true) => (D::SouthEast, CursorIcon::ResizeNwSe),
+            (true, ..) => (D::West, CursorIcon::ResizeHorizontal),
+            (_, true, ..) => (D::East, CursorIcon::ResizeHorizontal),
+            (_, _, true, _) => (D::North, CursorIcon::ResizeVertical),
+            (.., true) => (D::South, CursorIcon::ResizeVertical),
+            _ => return,
+        };
+        ctx.set_cursor_icon(cursor);
+        if ctx.input(|i| i.pointer.primary_pressed()) {
+            ctx.send_viewport_cmd(ViewportCommand::BeginResize(dir));
+        }
     }
 
     // ---------- frame ----------
@@ -342,18 +424,16 @@ impl Workbench {
         let title = format!("{}{} — instaOptics", if self.session.is_dirty() { "● " } else { "" }, self.session.file_name());
         ctx.send_viewport_cmd(egui::ViewportCommand::Title(title));
 
-        egui::Panel::top("menu").show(ui, |ui| self.menu_bar(ui));
+        self.window_edges(&ctx);
+        self.ribbon(ui);
         egui::Panel::bottom("status").exact_size(22.0).show(ui, |ui| self.status_bar(ui));
-        egui::CentralPanel::no_frame().show(ui, |ui| {
-            let layout = self.workspace.layout.clone();
-            let style = DockStyle::from_ui(ui);
-            let output = DockArea::new(egui::Id::unique("instaoptics-dock")).show(ui, &layout, &style, |p| p.title().to_string(), permissions, |ui, panel| self.panel_ui(ui, *panel));
-            if !output.actions.is_empty() {
-                for action in output.actions {
-                    if let Err(e) = self.workspace.apply(action, permissions) {
-                        log::warn!("dock: {e:?}");
-                    }
-                }
+        egui::CentralPanel::default().frame(egui::Frame::new().fill(self.tokens.backdrop).inner_margin(6)).show(ui, |ui| {
+            let mut tree = std::mem::replace(&mut self.tree, Tree::empty(egui::Id::unique("instaoptics-dock")));
+            let mut dock = Dock { wb: self, changed: false };
+            tree.ui(&mut dock, ui);
+            let changed = dock.changed;
+            self.tree = tree;
+            if changed {
                 self.save_workspace();
             }
         });
@@ -460,7 +540,7 @@ impl Workbench {
         self.actions.extend(fired);
     }
 
-    fn menu_bar(&mut self, ui: &mut Ui) {
+    fn file_menu(&mut self, ui: &mut Ui) {
         egui::MenuBar::new().ui(ui, |ui| {
             let item = |ui: &mut Ui, label: &str, shortcut: Option<&str>| {
                 let mut button = egui::Button::new(label);
@@ -513,75 +593,6 @@ impl Workbench {
                 if item(ui, t("Exit"), None) {
                     pick(Action::Quit);
                 }
-            });
-            ui.menu_button(t("Edit"), |ui| {
-                if ui.add_enabled(self.session.can_undo(), egui::Button::new(t("Undo")).shortcut_text("Ctrl+Z")).clicked() {
-                    pick(Action::Command("undo", json!({})));
-                }
-                if ui.add_enabled(self.session.can_redo(), egui::Button::new(t("Redo")).shortcut_text("Ctrl+Y")).clicked() {
-                    pick(Action::Command("redo", json!({})));
-                }
-            });
-            let windows = |ui: &mut Ui, list: &[Panel], pick: &mut dyn FnMut(Action)| {
-                for p in list {
-                    if item(ui, p.title(), p.shortcut()) {
-                        pick(Action::Window(*p));
-                    }
-                }
-            };
-            ui.menu_button(t("Setup"), |ui| windows(ui, panels::SETUP, &mut pick));
-            ui.menu_button(t("Analyze"), |ui| {
-                ui.menu_button(t("Image Quality"), |ui| windows(ui, panels::IMAGE_QUALITY, &mut pick));
-                ui.menu_button(t("Aberrations"), |ui| windows(ui, panels::ABERRATIONS, &mut pick));
-                ui.menu_button(t("Polarization"), |ui| windows(ui, panels::POLARIZATION, &mut pick));
-                ui.menu_button(t("Physical Optics"), |ui| windows(ui, panels::PHYSICAL, &mut pick));
-            });
-            ui.menu_button(t("Optimize"), |ui| {
-                windows(ui, &[Panel::Optimize], &mut pick);
-                if item(ui, t("Remove All Variables"), None) {
-                    pick(Action::Command("variables.clear", json!({})));
-                }
-            });
-            ui.menu_button(t("Tolerance"), |ui| windows(ui, &[Panel::Tolerance], &mut pick));
-            ui.menu_button(t("Libraries"), |ui| {
-                windows(ui, &[Panel::Glasses], &mut pick);
-                if item(ui, t("Add Glass Catalog…"), None) {
-                    pick(Action::AddCatalog);
-                }
-            });
-            ui.menu_button(t("View"), |ui| {
-                let current = self.prefs.get().theme;
-                for (label, choice) in [("System Theme", ThemeChoice::System), ("Dark Theme", ThemeChoice::Dark), ("Light Theme", ThemeChoice::Light)] {
-                    if ui.radio(current == choice, label).clicked() {
-                        pick(Action::Theme(choice));
-                    }
-                }
-                ui.menu_button(t("Language"), |ui| {
-                    let current = self.prefs.get().language.clone();
-                    if ui.radio(current.is_empty() || current == "system", t("System Language")).clicked() {
-                        pick(Action::Language("system"));
-                    }
-                    for (code, name, _) in crate::i18n::LANGUAGES {
-                        if ui.radio(current == code, name).clicked() {
-                            pick(Action::Language(code));
-                        }
-                    }
-                });
-                ui.separator();
-                if item(ui, t("Reset Window Layout"), None) {
-                    pick(Action::ResetLayout);
-                }
-                if item(ui, t("Full Screen"), Some("F11")) {
-                    pick(Action::FullScreen);
-                }
-            });
-            ui.menu_button(t("Help"), |ui| {
-                if item(ui, t("Check for Updates…"), None) {
-                    pick(Action::CheckUpdates);
-                }
-                ui.separator();
-                ui.label(format!("instaOptics {}", env!("CARGO_PKG_VERSION")));
-                ui.hyperlink_to(t("Source code"), "https://github.com/Oneptica/instaOptics");
             });
             if let Some(a) = chosen {
                 self.act(a);
@@ -750,15 +761,5 @@ fn encode_screenshot(image: &egui::ColorImage, path: Option<&str>) -> Result<Val
     match path {
         Some(p) => std::fs::write(p, &png).map(|_| json!({ "path": p, "width": w, "height": h })).map_err(|e| e.to_string()),
         None => Ok(json!({ "pngBase64": commands::base64(&png), "width": w, "height": h })),
-    }
-}
-
-fn contains(node: &Node<Panel>, panel: Panel) -> bool {
-    match node {
-        Node::Split { first, second, .. } => contains(first, panel) || contains(second, panel),
-        Node::Tabs { panels, .. } => panels.contains(&panel),
-        Node::Stack { entries } => entries.iter().any(|e| e.panel == panel),
-        Node::Dock { columns, .. } => columns.iter().any(|c| c.groups.iter().any(|g| g.panels.contains(&panel))),
-        _ => false,
     }
 }

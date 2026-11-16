@@ -12,7 +12,7 @@ pub struct Prefs {
     pub language: String,
     /// Most recent first.
     pub recent: Vec<String>,
-    /// The docked window layout as JSON (craft-ui docking workspace).
+    /// The docked window layout as JSON (egui_tiles tree).
     pub workspace: String,
 }
 

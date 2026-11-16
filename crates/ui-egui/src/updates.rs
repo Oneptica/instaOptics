@@ -7,8 +7,10 @@
 use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, channel};
 
-const RELEASES: &str = "https://api.github.com/repos/Oneptica/instaOptics/releases/latest";
+// The latest release is read from the redirect of the releases page, which GitHub does not rate limit the way it limits
+// api.github.com (60 requests an hour per address, shared by everyone behind one).
 const PAGE: &str = "https://github.com/Oneptica/instaOptics/releases/latest";
+const DOWNLOAD: &str = "https://github.com/Oneptica/instaOptics/releases/download";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Clone, Debug, PartialEq)]
@@ -76,23 +78,33 @@ fn download_dir() -> PathBuf {
     std::env::temp_dir().join("instaoptics-update")
 }
 
-/// The check and, where this install can update itself, the download. Runs on a worker thread.
-fn check(tx: std::sync::mpsc::Sender<State>, ctx: egui::Context) {
+/// The tag the latest release page redirects to, such as `v0.2.0`.
+fn latest_tag() -> Result<String, String> {
+    let agent: ureq::Agent = ureq::Agent::config_builder().max_redirects(0).http_status_as_error(false).user_agent("instaOptics").build().into();
+    let response = agent.get(PAGE).call().map_err(|e| e.to_string())?;
+    let location = response.headers().get("location").and_then(|v| v.to_str().ok()).ok_or("no release found")?;
+    location.rsplit_once("/tag/").map(|(_, tag)| tag.to_string()).ok_or_else(|| "no release found".to_string())
+}
+
+/// The check and, where this install can update itself, the download. Runs on a worker thread. A failed check is
+/// reported only when the user asked for it.
+fn check(tx: std::sync::mpsc::Sender<State>, ctx: egui::Context, manual: bool) {
     let send = |s: State| {
         let _ = tx.send(s);
         ctx.request_repaint();
     };
-    let release: serde_json::Value = match ureq::get(RELEASES).header("User-Agent", "instaOptics").call().and_then(|mut r| r.body_mut().read_json()) {
-        Ok(v) => v,
-        Err(e) => return send(State::Failed(e.to_string())),
+    let raw_tag = match latest_tag() {
+        Ok(tag) => tag,
+        Err(e) => return send(if manual { State::Failed(e) } else { State::Idle }),
     };
-    let tag = release["tag_name"].as_str().unwrap_or_default().trim_start_matches('v').to_string();
+    let tag = raw_tag.trim_start_matches('v').to_string();
     if !is_newer(&tag, VERSION) {
         return send(State::UpToDate);
     }
-    let asset = asset_suffix().and_then(|suffix| {
+    let asset = asset_suffix().map(|suffix| {
         let name = format!("instaoptics-{tag}{suffix}");
-        release["assets"].as_array()?.iter().find(|a| a["name"].as_str() == Some(name.as_str()))?["browser_download_url"].as_str().map(|u| (name, u.to_string()))
+        let url = format!("{DOWNLOAD}/{raw_tag}/{name}");
+        (name, url)
     });
     let install = install_kind();
     let (Some((name, url)), false) = (asset, matches!(install, Install::Other)) else {
@@ -142,7 +154,12 @@ impl Default for Updates {
 }
 
 impl Updates {
+    /// A check the user asked for: its failure is shown.
     pub fn check_now(&mut self, ctx: &egui::Context) {
+        self.start(ctx, true);
+    }
+
+    fn start(&mut self, ctx: &egui::Context, manual: bool) {
         if matches!(self.state, State::Checking | State::Downloading(_) | State::Ready(_)) {
             return;
         }
@@ -150,12 +167,12 @@ impl Updates {
         let ctx = ctx.clone();
         self.state = State::Checking;
         self.rx = Some(rx);
-        std::thread::spawn(move || check(tx, ctx));
+        std::thread::spawn(move || check(tx, ctx, manual));
     }
 
     pub fn frame(&mut self, ctx: &egui::Context) {
         if !std::mem::replace(&mut self.started, true) {
-            self.check_now(ctx);
+            self.start(ctx, false);
         }
         if let Some(rx) = &self.rx {
             while let Ok(s) = rx.try_recv() {
@@ -173,7 +190,7 @@ impl Updates {
             State::Available(v) => (format!("instaOptics {v} is available"), false, Some(PAGE)),
             State::Downloading(v) => (format!("Downloading instaOptics {v}…"), false, None),
             State::Ready(v) => (format!("instaOptics {v} installs when you restart"), false, None),
-            State::Failed(e) => (format!("Update check failed: {e}"), true, None),
+            State::Failed(e) => (format!("Update check failed: {e}"), false, None),
         })
     }
 

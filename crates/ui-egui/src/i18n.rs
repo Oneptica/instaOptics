@@ -59,8 +59,8 @@ pub fn t(english: &'static str) -> &'static str {
     catalogs().get(active).and_then(|c| c.get(english).copied()).unwrap_or(english)
 }
 
-/// Adds a system CJK font after egui's own fonts, so Chinese, Japanese and Korean text and file names render. egui's
-/// own font covers Latin and Cyrillic.
+/// Inter for Latin text, the icon font, then a system CJK font after them so Chinese, Japanese and Korean text and file
+/// names render. Inter and the icons are built in; egui's own fonts stay as the fallback for Cyrillic and symbols.
 pub fn install_fonts(ctx: &egui::Context) {
     const CANDIDATES: &[&str] = &[
         "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
@@ -75,13 +75,17 @@ pub fn install_fonts(ctx: &egui::Context) {
         "/System/Library/Fonts/Hiragino Sans GB.ttc",
         "/Library/Fonts/Arial Unicode.ttf",
     ];
-    let Some(bytes) = CANDIDATES.iter().find_map(|p| std::fs::read(p).ok()) else { return };
     let mut fonts = egui::FontDefinitions::default();
-    fonts.font_data.insert("cjk".into(), std::sync::Arc::new(egui::FontData::from_owned(bytes)));
-    for family in [egui::FontFamily::Proportional, egui::FontFamily::Monospace] {
-        fonts.families.entry(family).or_default().push("cjk".into());
+    fonts.font_data.insert("inter".into(), std::sync::Arc::new(egui::FontData::from_static(include_bytes!("../../../assets/fonts/Inter-Regular.ttf"))));
+    fonts.families.entry(egui::FontFamily::Proportional).or_default().insert(0, "inter".into());
+    if let Some(bytes) = CANDIDATES.iter().find_map(|p| std::fs::read(p).ok()) {
+        fonts.font_data.insert("cjk".into(), std::sync::Arc::new(egui::FontData::from_owned(bytes)));
+        for family in [egui::FontFamily::Proportional, egui::FontFamily::Monospace] {
+            fonts.families.entry(family).or_default().push("cjk".into());
+        }
     }
     ctx.set_fonts(fonts);
+    egui_material_icons::initialize(ctx);
 }
 
 #[cfg(test)]
